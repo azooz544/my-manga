@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getMangaList } from '@/lib/mangaService';
+import { getTopManga, searchManga, transformJikanManga } from '@/lib/jikanService';
 import MangaCard from './MangaCard';
 import { Search, Filter, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,14 +21,22 @@ export default function MangaGrid() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedType, setSelectedType] = useState('newest');
 
-  // Fetch manga data from API
+  // Fetch manga data from Jikan API
   useEffect(() => {
     const fetchManga = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await getMangaList(currentPage, undefined, selectedType);
-        setMangaList(response.mangaList);
+        
+        let response;
+        if (searchQuery.trim()) {
+          response = await searchManga(searchQuery, currentPage);
+        } else {
+          response = await getTopManga(currentPage, selectedType);
+        }
+        
+        const transformedManga = response.data.map(transformJikanManga);
+        setMangaList(transformedManga);
       } catch (err) {
         setError('فشل في تحميل بيانات المانجا. يرجى المحاولة لاحقاً.');
         console.error('Error fetching manga:', err);
@@ -37,15 +45,17 @@ export default function MangaGrid() {
       }
     };
 
-    fetchManga();
-  }, [currentPage, selectedType]);
+    const debounceTimer = setTimeout(() => {
+      fetchManga();
+    }, 500);
 
-  // Filter manga based on search query
+    return () => clearTimeout(debounceTimer);
+  }, [currentPage, selectedType, searchQuery]);
+
+  // Manga list is already filtered by API
   const filteredManga = useMemo(() => {
-    return mangaList.filter(manga =>
-      manga.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [mangaList, searchQuery]);
+    return mangaList;
+  }, [mangaList]);
 
   return (
     <section className="py-16 bg-background">
@@ -89,26 +99,26 @@ export default function MangaGrid() {
               الأحدث
             </Button>
             <Button
-              variant={selectedType === 'latest' ? 'default' : 'outline'}
+              variant={selectedType === 'manga' ? 'default' : 'outline'}
               size="sm"
               onClick={() => {
-                setSelectedType('latest');
+                setSelectedType('manga');
                 setCurrentPage(1);
               }}
               className="text-xs"
             >
-              الأخير
+              الأكثر تقييماً
             </Button>
             <Button
-              variant={selectedType === 'topview' ? 'default' : 'outline'}
+              variant={selectedType === 'upcoming' ? 'default' : 'outline'}
               size="sm"
               onClick={() => {
-                setSelectedType('topview');
+                setSelectedType('upcoming');
                 setCurrentPage(1);
               }}
               className="text-xs"
             >
-              الأكثر مشاهدة
+              القادمة
             </Button>
           </div>
         </div>
