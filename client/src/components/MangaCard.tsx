@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 
@@ -43,11 +43,7 @@ export default function MangaCard({ manga }: MangaCardProps) {
                 <div className="flex gap-2">
                   <Button className="flex-1 bg-purple-600 hover:bg-purple-700 text-white gap-2 text-sm">
                     <Eye className="w-4 h-4" />
-                    اقرأ
-                  </Button>
-                  <Button className="bg-cyan-500 hover:bg-cyan-600 text-black gap-2 text-sm">
-                    <Download className="w-4 h-4" />
-                    تحميل
+                    اقرأ الآن
                   </Button>
                 </div>
               </div>

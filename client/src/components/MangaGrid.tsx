@@ -19,7 +19,7 @@ export default function MangaGrid() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedType, setSelectedType] = useState('newest');
+  const [selectedType, setSelectedType] = useState('all');
 
   // Fetch manga data from Jikan API
   useEffect(() => {
@@ -32,7 +32,8 @@ export default function MangaGrid() {
         if (searchQuery.trim()) {
           response = await searchManga(searchQuery, currentPage);
         } else {
-          response = await getTopManga(currentPage, selectedType);
+          // Fetch top manga by default
+          response = await getTopManga(currentPage, 'manga');
         }
         
         if (response && response.data && Array.isArray(response.data)) {
@@ -93,15 +94,15 @@ export default function MangaGrid() {
           </h3>
           <div className="flex flex-wrap gap-2">
             <Button
-              variant={selectedType === 'newest' ? 'default' : 'outline'}
+              variant={selectedType === 'all' ? 'default' : 'outline'}
               size="sm"
               onClick={() => {
-                setSelectedType('newest');
+                setSelectedType('all');
                 setCurrentPage(1);
               }}
               className="text-xs"
             >
-              الأحدث
+              الأفضل
             </Button>
             <Button
               variant={selectedType === 'manga' ? 'default' : 'outline'}
@@ -123,7 +124,7 @@ export default function MangaGrid() {
               }}
               className="text-xs"
             >
-              القادمة
+              الجديدة
             </Button>
           </div>
         </div>

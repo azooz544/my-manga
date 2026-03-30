@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Play, Download } from 'lucide-react';
+import { Play } from 'lucide-react';
 
 const HERO_IMAGE = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663487489075/KqQ5RRmF8R5CT2sVVfLZbb/anime-hero-banner-DCdpXstpHhkvzihaz3Y6kJ.webp';
 
@@ -41,14 +41,7 @@ export default function HeroSection() {
               className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 text-lg font-semibold flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-purple-600/50"
             >
               <Play className="w-5 h-5" />
-              ابدأ القراءة
-            </Button>
-            <Button
-              variant="outline"
-              className="border-cyan-500 text-cyan-500 hover:bg-cyan-500/10 px-8 py-6 text-lg font-semibold flex items-center gap-2 transition-all"
-            >
-              <Download className="w-5 h-5" />
-              تحميل الآن
+              ابدأ القراءة الآن
             </Button>
           </div>
 

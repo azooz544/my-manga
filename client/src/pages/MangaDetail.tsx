@@ -1,7 +1,7 @@
 import { useParams, Link } from 'wouter';
 import { getMangaDetail } from '@/lib/mangaService';
 import { Button } from '@/components/ui/button';
-import { Play, Download, Star, Calendar, BookOpen, Tag, Loader, ArrowRight } from 'lucide-react';
+import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface MangaDetail {
@@ -133,11 +133,7 @@ export default function MangaDetail() {
                 <div className="pt-4 space-y-3">
                   <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2">
                     <Play className="w-4 h-4" />
-                    اقرأ الآن
-                  </Button>
-                  <Button className="w-full bg-cyan-500 hover:bg-cyan-600 text-black gap-2">
-                    <Download className="w-4 h-4" />
-                    تحميل الآن
+                    ابدأ القراءة
                   </Button>
                 </div>
               </div>
