@@ -18,10 +18,11 @@ async function callTRPCProcedure<T>(
   input: unknown
 ): Promise<T> {
   try {
-    const inputJson = superjson.stringify(input);
-    const url = `${API_BASE}/${procedurePath}?input=${encodeURIComponent(inputJson)}`;
+    // Use superjson to properly serialize the input
+    const serialized = superjson.stringify(input);
+    const url = `${API_BASE}/${procedurePath}?input=${encodeURIComponent(serialized)}`;
     
-    console.log(`[tRPCClient] Calling: ${procedurePath}`, { input });
+    console.log(`[tRPCClient] Calling: ${procedurePath}`, { input, url });
     
     const response = await fetch(url, {
       method: 'GET',
@@ -32,20 +33,28 @@ async function callTRPCProcedure<T>(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorText = await response.text();
+      console.error(`[tRPCClient] Error response:`, errorText);
       throw new Error(
-        errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`
+        `HTTP ${response.status}: ${response.statusText}`
       );
     }
 
-    const data = (await response.json()) as TRPCResponse<T>;
+    const responseText = await response.text();
+    console.log(`[tRPCClient] Raw response:`, responseText);
+    
+    const data = JSON.parse(responseText) as TRPCResponse<any>;
     
     if (!data.result) {
-      throw new Error('Invalid tRPC response format');
+      throw new Error('Invalid tRPC response format: ' + JSON.stringify(data));
     }
 
-    console.log(`[tRPCClient] Success:`, data.result.data);
-    return data.result.data;
+    // Deserialize the response using superjson
+    const deserializedData = superjson.deserialize(data.result.data) as T;
+    
+    console.log(`[tRPCClient] Deserialized data:`, deserializedData);
+    console.log(`[tRPCClient] Success:`, deserializedData);
+    return deserializedData;
   } catch (error: any) {
     console.error(`[tRPCClient] Error calling ${procedurePath}:`, error);
     throw error;
@@ -55,7 +64,7 @@ async function callTRPCProcedure<T>(
 export const trpcClient = {
   manga: {
     search: (title: string) => callTRPCProcedure<any[]>('manga.search', title),
-    getChapters: (malId: string) => callTRPCProcedure<any[]>('manga.getChapters', malId),
+    getChapters: (mangaId: string) => callTRPCProcedure<any[]>('manga.getChapters', mangaId),
     getChapterImages: (chapterId: string) =>
       callTRPCProcedure<string[]>('manga.getChapterImages', chapterId),
   },

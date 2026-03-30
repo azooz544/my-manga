@@ -20,6 +20,15 @@ interface MangaDetailData {
   published: { from: string };
 }
 
+interface Chapter {
+  id: string;
+  chap: string;
+  title: string;
+  pages: number;
+  publishAt: string;
+  scanlationGroup?: string;
+}
+
 export default function MangaDetail() {
   const { id } = useParams<{ id: string }>();
   const [manga, setManga] = useState<MangaDetailData | null>(null);
@@ -29,9 +38,10 @@ export default function MangaDetail() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [chapterImages, setChapterImages] = useState<string[]>([]);
-  const [chapters, setChapters] = useState<any[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
   const [loadingChapters, setLoadingChapters] = useState(false);
+  const [mangaDexId, setMangaDexId] = useState<string | null>(null);
 
   // Fetch manga detail from Jikan
   useEffect(() => {
@@ -44,8 +54,8 @@ export default function MangaDetail() {
           const mangaData = response.data;
           setManga(mangaData);
           
-          // Search for manga on backend and load chapters
-          await searchAndLoadChapters(mangaData.mal_id.toString());
+          // Search for manga on MangaDex and load chapters
+          await searchAndLoadChapters(mangaData.title_english || mangaData.title);
         }
       } catch (err: any) {
         console.error('[MangaDetail] Error fetching manga:', err);
@@ -58,25 +68,51 @@ export default function MangaDetail() {
     fetchMangaDetail();
   }, [id]);
 
-  const searchAndLoadChapters = async (malId: string) => {
+  const searchAndLoadChapters = async (title: string) => {
     try {
       setLoadingChapters(true);
       setError(null);
 
-      console.log(`[MangaDetail] Loading chapters for malId: ${malId}`);
+      console.log(`[MangaDetail] Searching for: ${title}`);
       
-      // استدعاء tRPC getChapters procedure
-      const chaptersData = await trpcClient.manga.getChapters(malId);
-      console.log(`[MangaDetail] Got chapters:`, chaptersData);
-      
-      if (chaptersData && Array.isArray(chaptersData) && chaptersData.length > 0) {
-        setChapters(chaptersData);
-      } else {
-        setError('لم يتم العثور على فصول لهذه المانجا');
+      // استدعاء tRPC search procedure
+      const searchResults = await trpcClient.manga.search(title);
+      console.log(`[MangaDetail] Search results:`, searchResults);
+      console.log(`[MangaDetail] Search results type:`, typeof searchResults);
+      console.log(`[MangaDetail] Search results[0]:`, searchResults?.[0]);
+      console.log(`[MangaDetail] Search results[0] type:`, typeof searchResults?.[0]);
+      console.log(`[MangaDetail] Search results[0].id:`, searchResults?.[0]?.id);
+
+      if (!searchResults || searchResults.length === 0) {
+        setError('لم يتم العثور على هذه المانجا في MangaDex');
+        return;
+      }
+
+      if (!searchResults[0] || !searchResults[0].id) {
+        setError('فشل في الحصول على معرّف المانجا');
+        return;
+      }
+
+      const mangaId = searchResults[0].id;
+      setMangaDexId(mangaId);
+
+      // جلب الفصول
+      try {
+        const chaptersData = await trpcClient.manga.getChapters(mangaId);
+        console.log(`[MangaDetail] Got chapters:`, chaptersData);
+        
+        if (chaptersData && Array.isArray(chaptersData) && chaptersData.length > 0) {
+          setChapters(chaptersData);
+        } else {
+          setError('لم يتم العثور على فصول لهذه المانجا');
+        }
+      } catch (chapErr: any) {
+        console.error('[MangaDetail] Error loading chapters:', chapErr);
+        setError(chapErr.message || 'خطأ في جلب الفصول');
       }
     } catch (searchErr: any) {
-      console.error('[MangaDetail] Error loading chapters:', searchErr);
-      setError(searchErr.message || 'خطأ في جلب الفصول');
+      console.error('[MangaDetail] Error searching manga:', searchErr);
+      setError(searchErr?.message || searchErr?.toString?.() || 'خطأ في البحث عن المانجا');
     } finally {
       setLoadingChapters(false);
     }
@@ -174,7 +210,7 @@ export default function MangaDetail() {
               className="w-full rounded-lg shadow-lg mb-6"
             />
             <Button 
-              onClick={() => chapters.length > 0 && handleChapterSelect(chapters[0].hid)}
+              onClick={() => chapters.length > 0 && handleChapterSelect(chapters[0].id)}
               disabled={chapters.length === 0 || loadingChapters}
               className="w-full bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-700 hover:to-cyan-600 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
             >
@@ -203,7 +239,7 @@ export default function MangaDetail() {
                 <BookOpen className="w-5 h-5 text-purple-500" />
                 <div>
                   <p className="text-sm text-gray-400">الفصول</p>
-                  <p className="font-bold">{manga.chapters || 'N/A'}</p>
+                  <p className="font-bold">{chapters.length}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -267,12 +303,13 @@ export default function MangaDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {chapters.map((chapter) => (
                 <button
-                  key={chapter.hid}
-                  onClick={() => handleChapterSelect(chapter.hid)}
-                  className="p-4 bg-card hover:bg-card/80 rounded-lg transition-all hover:shadow-lg"
+                  key={chapter.id}
+                  onClick={() => handleChapterSelect(chapter.id)}
+                  className="p-4 bg-card hover:bg-card/80 rounded-lg transition-all hover:shadow-lg text-right"
                 >
-                  <h4 className="font-bold text-right">{chapter.title || `الفصل ${chapter.chap}`}</h4>
-                  <p className="text-sm text-gray-400 text-right">الفصل: {chapter.chap}</p>
+                  <h4 className="font-bold">{chapter.title}</h4>
+                  <p className="text-sm text-gray-400">الفصل: {chapter.chap}</p>
+                  <p className="text-xs text-gray-500 mt-2">الصفحات: {chapter.pages}</p>
                 </button>
               ))}
             </div>

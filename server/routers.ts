@@ -3,6 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
+import { searchManga, getChapters, getChapterImages } from "./_core/mangadexProxy";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -33,31 +34,26 @@ export const appRouter = router({
             });
           }
 
-          console.log(`[Jikan Search] Searching for: ${title}`);
-          const response = await fetch(
-            `https://api.jikan.moe/v4/manga?query=${encodeURIComponent(title)}&limit=5`
-          );
+          console.log(`[Router] Searching for manga: ${title}`);
+          
+          // استخدام MangaDex API للبحث
+          const results = await searchManga(title, {
+            maxRetries: 3,
+            timeout: 15000,
+            delayMs: 1000,
+          });
 
-          if (!response.ok) {
-            throw new TRPCError({
-              code: 'INTERNAL_SERVER_ERROR',
-              message: `خطأ من Jikan API: ${response.status}`,
-            });
-          }
-
-          const data = await response.json();
-          console.log(`[Jikan Search] Response:`, data);
-
-          if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+          if (!results || results.length === 0) {
             throw new TRPCError({
               code: 'NOT_FOUND',
               message: `لم يتم العثور على المانجا: "${title}"`,
             });
           }
 
-          return data.data;
+          console.log(`[Router] Found ${results.length} manga results`);
+          return results;
         } catch (error: any) {
-          console.error('[Jikan Search Error]', error);
+          console.error('[Router] Search error:', error);
           
           if (error instanceof TRPCError) {
             throw error;
@@ -75,53 +71,35 @@ export const appRouter = router({
         if (typeof val === 'string') return val;
         throw new Error('Expected string');
       })
-      .query(async ({ input: malId }) => {
+      .query(async ({ input: mangaId }) => {
         try {
-          if (!malId || malId.toString().trim().length === 0) {
+          if (!mangaId || mangaId.trim().length === 0) {
             throw new TRPCError({
               code: 'BAD_REQUEST',
               message: 'معرّف المانجا مطلوب',
             });
           }
 
-          console.log(`[Jikan Chapters] Fetching chapters for malId: ${malId}`);
+          console.log(`[Router] Fetching chapters for mangaId: ${mangaId}`);
           
-          // Jikan API doesn't provide detailed chapter data
-          // We'll generate mock chapters based on the manga's chapter count
-          const mangaResponse = await fetch(
-            `https://api.jikan.moe/v4/manga/${malId}`
-          );
+          // استخدام MangaDex API لجلب الفصول (مع تصفية الفصول الخارجية)
+          const chapters = await getChapters(mangaId, {
+            maxRetries: 3,
+            timeout: 15000,
+            delayMs: 1000,
+          });
 
-          if (!mangaResponse.ok) {
-            throw new TRPCError({
-              code: 'INTERNAL_SERVER_ERROR',
-              message: `خطأ من Jikan API: ${mangaResponse.status}`,
-            });
-          }
-
-          const mangaData = await mangaResponse.json();
-          const chapterCount = mangaData.data?.chapters || 50;
-
-          // Generate mock chapters for display
-          const mockChapters = Array.from({ length: Math.min(chapterCount, 100) }, (_, i) => ({
-            hid: `ch-${i + 1}`,
-            chap: i + 1,
-            title: `الفصل ${i + 1}`,
-            createdAt: new Date(Date.now() - (100 - i) * 86400000).toISOString(),
-          }));
-
-          console.log(`[Jikan Chapters] Generated ${mockChapters.length} mock chapters`);
-          
-          if (mockChapters.length === 0) {
+          if (!chapters || chapters.length === 0) {
             throw new TRPCError({
               code: 'NOT_FOUND',
               message: 'لم يتم العثور على فصول لهذه المانجا',
             });
           }
 
-          return mockChapters;
+          console.log(`[Router] Found ${chapters.length} chapters`);
+          return chapters;
         } catch (error: any) {
-          console.error('[Jikan Chapters Error]', error);
+          console.error('[Router] Get chapters error:', error);
           
           if (error instanceof TRPCError) {
             throw error;
@@ -148,25 +126,26 @@ export const appRouter = router({
             });
           }
 
-          console.log(`[Chapter Images] Fetching images for chapter: ${chapterId}`);
+          console.log(`[Router] Fetching images for chapter: ${chapterId}`);
           
-          // Generate mock placeholder images for the chapter
-          // In production, integrate with a real manga reading API like MangaDex
-          const mockImages = Array.from({ length: 20 }, (_, i) => 
-            `https://via.placeholder.com/600x900?text=صفحة+${i + 1}`
-          );
+          // استخدام MangaDex API لجلب صور الفصل
+          const images = await getChapterImages(chapterId, {
+            maxRetries: 3,
+            timeout: 15000,
+            delayMs: 1000,
+          });
 
-          if (mockImages.length === 0) {
+          if (!images || images.length === 0) {
             throw new TRPCError({
               code: 'NOT_FOUND',
               message: 'لم يتم العثور على صور لهذا الفصل',
             });
           }
 
-          console.log(`[Chapter Images] Generated ${mockImages.length} mock images`);
-          return mockImages;
+          console.log(`[Router] Found ${images.length} images`);
+          return images;
         } catch (error: any) {
-          console.error('[Chapter Images Error]', error);
+          console.error('[Router] Get images error:', error);
           
           if (error instanceof TRPCError) {
             throw error;
