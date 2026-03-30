@@ -11,7 +11,7 @@ import Footer from '@/components/Footer';
  * - High contrast for better readability
  * 
  * Team A - Manga Download Site
- * Powered by Manga Hook API
+ * Powered by MangaDex API
  */
 export default function Home() {
   return (
