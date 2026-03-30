@@ -10,7 +10,7 @@ export default function Header() {
       <div className="container flex items-center justify-between h-16">
         {/* Logo */}
         <Link href="/">
-          <a className="flex items-center gap-2 group cursor-pointer">
+          <div className="flex items-center gap-2 group cursor-pointer">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-cyan-500 flex items-center justify-center">
               <span className="text-white font-bold text-lg">A</span>
             </div>
@@ -18,13 +18,13 @@ export default function Header() {
               <span className="text-lg font-bold text-white leading-tight">Team A</span>
               <span className="text-xs text-gray-400">المانجا</span>
             </div>
-          </a>
+          </div>
         </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
           <Link href="/">
-            <a className="text-foreground hover:text-accent transition-colors">الرئيسية</a>
+            <div className="text-foreground hover:text-accent transition-colors cursor-pointer">الرئيسية</div>
           </Link>
           <a href="#" className="text-foreground hover:text-accent transition-colors">الأنواع</a>
           <a href="#" className="text-foreground hover:text-accent transition-colors">الأخبار</a>
@@ -56,7 +56,7 @@ export default function Header() {
         <nav className="md:hidden bg-secondary border-t border-border">
           <div className="container py-4 flex flex-col gap-3">
             <Link href="/">
-              <a className="text-foreground hover:text-accent transition-colors py-2">الرئيسية</a>
+              <div className="text-foreground hover:text-accent transition-colors py-2 cursor-pointer">الرئيسية</div>
             </Link>
             <a href="#" className="text-foreground hover:text-accent transition-colors py-2">الأنواع</a>
             <a href="#" className="text-foreground hover:text-accent transition-colors py-2">الأخبار</a>
