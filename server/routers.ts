@@ -18,31 +18,43 @@ export const appRouter = router({
   }),
 
   manga: router({
+    search: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'string') return val;
+        throw new Error('Expected string');
+      })
+      .query(async ({ input: title }) => {
+        try {
+          const response = await fetch(
+            `https://api.comick.cc/v1.0/search?q=${encodeURIComponent(title)}&limit=1`
+          );
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error('Error searching manga:', error);
+          return [];
+        }
+      }),
+    
     getChapters: publicProcedure
       .input((val: unknown) => {
         if (typeof val === 'string') return val;
         throw new Error('Expected string');
       })
-      .query(async ({ input: mangaDexId }) => {
+      .query(async ({ input: hid }) => {
         try {
           const response = await fetch(
-            `https://api.mangadex.org/manga/${mangaDexId}/feed?translatedLanguage[]=ar&translatedLanguage[]=en&order[chapter]=asc&limit=500`
+            `https://api.comick.cc/comic/${hid}/chapters?limit=100`
           );
           const data = await response.json();
-          
-          // فلترة الفصول الحقيقية فقط
-          const validChapters = data.data.filter((ch: any) => 
-            ch.attributes && ch.attributes.pages > 0 && ch.attributes.externalUrl === null
-          );
-
-          return validChapters;
+          return data.chapters || [];
         } catch (error) {
           console.error('Error fetching chapters:', error);
           return [];
         }
       }),
     
-    getChapterPages: publicProcedure
+    getChapterImages: publicProcedure
       .input((val: unknown) => {
         if (typeof val === 'string') return val;
         throw new Error('Expected string');
@@ -50,12 +62,18 @@ export const appRouter = router({
       .query(async ({ input: chapterId }) => {
         try {
           const response = await fetch(
-            `https://api.mangadex.org/at-home/server/${chapterId}`
+            `https://api.comick.cc/chapter/${chapterId}`
           );
           const data = await response.json();
-          return data;
+          
+          // تركيب روابط الصور بإضافة https://meo.comick.pictures/ قبل كل b2key
+          const images = data.chapter.md_images.map((img: any) =>
+            `https://meo.comick.pictures/${img.b2key}`
+          );
+          
+          return images;
         } catch (error) {
-          console.error('Error fetching chapter pages:', error);
+          console.error('Error fetching chapter images:', error);
           throw error;
         }
       }),

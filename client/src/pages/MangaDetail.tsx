@@ -1,6 +1,5 @@
 import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
-import { buildImageUrl } from '@/lib/mangadexService';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
@@ -33,9 +32,7 @@ export default function MangaDetail() {
   const [chapters, setChapters] = useState<any[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
   const [loadingChapters, setLoadingChapters] = useState(false);
-  const [mangaDexId, setMangaDexId] = useState<string | null>(null);
-
-
+  const [comickHid, setComickHid] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -49,18 +46,16 @@ export default function MangaDetail() {
           
           try {
             setLoadingChapters(true);
-            // البحث عن المانجا على MangaDex
+            // البحث عن المانجا على ComicK
             const searchQuery = mangaData.title_english || mangaData.title;
-            const searchRes = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(searchQuery)}&limit=1`);
-            const searchData = await searchRes.json();
-
-            if (searchData.data && searchData.data.length > 0) {
-              const dexId = searchData.data[0].id;
-              setMangaDexId(dexId);
+            const searchRes = await fetch(`/api/trpc/manga.search?input=${encodeURIComponent(JSON.stringify({ json: searchQuery }))}`).then(r => r.json()).then(d => d.result?.data || []);
+            
+            if (searchRes && searchRes.length > 0) {
+              const hid = searchRes[0].hid;
+              setComickHid(hid);
             }
           } catch (chapErr) {
             console.error('Error fetching chapters:', chapErr);
-          } finally {
             setLoadingChapters(false);
           }
         }
@@ -75,12 +70,12 @@ export default function MangaDetail() {
   }, [id]);
 
   // استدعاء الفصول عند تحديد المانجا
-  const chaptersQuery = trpc.manga.getChapters.useQuery(mangaDexId || '', {
-    enabled: !!mangaDexId,
+  const chaptersQuery = trpc.manga.getChapters.useQuery(comickHid || '', {
+    enabled: !!comickHid,
   });
 
   // تحديث الفصول عند تحميلها
-  React.useEffect(() => {
+  useEffect(() => {
     if (chaptersQuery.data) {
       setChapters(chaptersQuery.data);
       setLoadingChapters(false);
@@ -92,23 +87,19 @@ export default function MangaDetail() {
       setChapterImages([]); 
       setViewerError(null);
       
-      // استدعاء API لجلب صور الفصل
-      const response = await fetch(`/api/trpc/manga.getChapterPages?input=${encodeURIComponent(JSON.stringify({ json: chapterId }))}`);
-      const result = await response.json();
-      const pages = result.result?.data;
+      // استدعاء API لجلب صور الفصل من ComicK
+      const imagesRes = await fetch(`/api/trpc/manga.getChapterImages?input=${encodeURIComponent(JSON.stringify({ json: chapterId }))}`).then(r => r.json());
+      const images = imagesRes.result?.data || [];
       
-      if (!pages || !pages.chapter || !pages.chapter.data || pages.chapter.data.length === 0) {
+      if (!images || images.length === 0) {
         setViewerError("هذا الفصل لا يحتوي على صور متاحة.");
         return;
       }
-
-      const images = pages.chapter.data.map((imageName: string) =>
-        buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
-      );
       
       setChapterImages(images);
       setSelectedChapter(chapterId);
       setCurrentImageIndex(0);
+      setShowImageViewer(true);
     } catch (err: any) {
       console.error('Error loading chapter:', err);
       setViewerError("حدث خطأ في تحميل صور الفصل. حاول مرة أخرى.");
@@ -123,42 +114,34 @@ export default function MangaDetail() {
     setCurrentImageIndex((prev) => Math.max(0, prev - 1));
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!showImageViewer) return;
-      if (e.key === 'ArrowLeft') nextPage();
-      else if (e.key === 'ArrowRight') prevPage();
-      else if (e.key === 'Escape') setShowImageViewer(false);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!showImageViewer) return;
+    if (e.key === 'ArrowRight') nextPage();
+    if (e.key === 'ArrowLeft') prevPage();
+    if (e.key === 'Escape') setShowImageViewer(false);
   }, [showImageViewer, nextPage, prevPage]);
 
-  const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
-    const { clientX, target } = e;
-    const { left, width } = (target as HTMLImageElement).getBoundingClientRect();
-    if (clientX - left < width / 2) nextPage();
-    else prevPage();
-  };
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pt-20 flex items-center justify-center">
-        <Loader className="w-8 h-8 text-accent animate-spin" />
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <Loader className="animate-spin w-8 h-8" />
       </div>
     );
   }
 
   if (error || !manga) {
     return (
-      <div className="min-h-screen bg-background pt-20 flex items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-white mb-4">لم يتم العثور على المانجا</h1>
+          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <p className="text-lg">{error || 'فشل في تحميل المانجا'}</p>
           <Link href="/">
-            <div className="text-accent hover:underline flex items-center justify-center gap-2 cursor-pointer">
-              <ArrowRight className="w-4 h-4" /> العودة إلى الرئيسية
-            </div>
+            <Button className="mt-4">العودة للرئيسية</Button>
           </Link>
         </div>
       </div>
@@ -166,120 +149,185 @@ export default function MangaDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-20">
-      <div className="relative w-full h-96 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(135deg, rgba(15, 15, 15, 0.8), rgba(107, 33, 168, 0.4)), url('${manga.images.jpg.large_image_url}')` }}>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background"></div>
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Hero Section */}
+      <div className="relative h-96 overflow-hidden">
+        <img 
+          src={manga.images.jpg.large_image_url} 
+          alt={manga.title}
+          className="w-full h-full object-cover opacity-30"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background" />
       </div>
 
-      <div className="container relative -mt-32 mb-16">
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-4 py-8 -mt-32 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Sidebar */}
           <div className="md:col-span-1">
-            <div className="bg-card border border-border rounded-lg overflow-hidden sticky top-24">
-              <img src={manga.images.jpg.large_image_url} alt={manga.title} className="w-full aspect-video object-cover" />
-              <div className="p-6 space-y-4">
-                <div>
-                  <p className="text-xs text-gray-400 mb-2">التقييم</p>
-                  <div className="flex items-center gap-2">
-                    <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                    <span className="text-white font-bold">{manga.score}</span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-2">عدد الفصول المتاحة</p>
-                  <div className="flex items-center gap-2 text-white">
-                    <BookOpen className="w-4 h-4" />
-                    <span>{chapters.length}</span>
-                  </div>
-                </div>
-                <div className="pt-4 space-y-3">
-                  <Button onClick={() => setShowImageViewer(true)} className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2" disabled={chapters.length === 0 || loadingChapters}>
-                    <Play className="w-4 h-4" /> اقرأ الآن
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <img 
+              src={manga.images.jpg.large_image_url}
+              alt={manga.title}
+              className="w-full rounded-lg shadow-lg mb-6"
+            />
+            <Button 
+              onClick={() => chapters.length > 0 && handleChapterSelect(chapters[0].hid)}
+              disabled={chapters.length === 0 || loadingChapters}
+              className="w-full bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-700 hover:to-cyan-600 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+            >
+              <Play className="w-5 h-5" />
+              {loadingChapters ? 'جاري التحميل...' : 'ابدأ القراءة الآن'}
+            </Button>
           </div>
 
+          {/* Main Content */}
           <div className="md:col-span-2">
-            <div className="bg-card border border-border rounded-lg p-8 mb-8">
-              <h1 className="text-4xl font-bold text-white mb-2">{manga.title}</h1>
-              <div className="mb-8 mt-6">
-                <h2 className="text-xl font-bold text-white mb-4">الوصف</h2>
-                <p className="text-gray-300 leading-relaxed line-clamp-6">{manga.synopsis}</p>
+            <h1 className="text-4xl font-bold mb-2">{manga.title}</h1>
+            {manga.title_english && (
+              <p className="text-gray-400 mb-4">{manga.title_english}</p>
+            )}
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-card rounded-lg">
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-yellow-500" />
+                <div>
+                  <p className="text-sm text-gray-400">التقييم</p>
+                  <p className="font-bold">{manga.score}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-purple-500" />
+                <div>
+                  <p className="text-sm text-gray-400">الفصول</p>
+                  <p className="font-bold">{manga.chapters || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-cyan-500" />
+                <div>
+                  <p className="text-sm text-gray-400">الحالة</p>
+                  <p className="font-bold">{manga.status}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Tag className="w-5 h-5 text-pink-500" />
+                <div>
+                  <p className="text-sm text-gray-400">السنة</p>
+                  <p className="font-bold">{new Date(manga.published.from).getFullYear()}</p>
+                </div>
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-lg p-8">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <BookOpen className="w-5 h-5" /> الفصول المتاحة ({chapters.length})
-              </h2>
-              <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                {loadingChapters ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader className="w-6 h-6 text-purple-500 animate-spin" />
-                  </div>
-                ) : chapters.length > 0 ? (
-                  chapters.map((chapter) => (
-                    <button
-                      key={chapter.id}
-                      onClick={() => {
-                        handleChapterSelect(chapter.id);
-                        setShowImageViewer(true);
-                      }}
-                      className={`w-full flex items-center justify-between p-3 border rounded-lg transition-colors group ${selectedChapter === chapter.id ? 'bg-purple-600/20 border-purple-500' : 'bg-secondary border-border hover:border-accent'}`}
-                    >
-                      <div className="flex-1 text-left">
-                        <p className="text-white font-medium group-hover:text-accent transition-colors">
-                          الفصل {chapter.attributes?.chapter || 'بدون رقم'} {chapter.attributes?.title ? `- ${chapter.attributes.title}` : ''}
-                        </p>
-                      </div>
-                      <ChevronLeft className="w-4 h-4 text-gray-400 group-hover:text-accent" />
-                    </button>
-                  ))
-                ) : (
-                  <p className="text-gray-400 text-center py-4">لا توجد فصول متاحة للقراءة</p>
-                )}
+            {/* Genres */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold mb-3">الأنواع</h3>
+              <div className="flex flex-wrap gap-2">
+                {manga.genres.map((genre) => (
+                  <span 
+                    key={genre.name}
+                    className="px-3 py-1 bg-purple-600/30 text-purple-300 rounded-full text-sm"
+                  >
+                    {genre.name}
+                  </span>
+                ))}
               </div>
+            </div>
+
+            {/* Synopsis */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold mb-3">الملخص</h3>
+              <p className="text-gray-300 leading-relaxed">{manga.synopsis}</p>
             </div>
           </div>
         </div>
+
+        {/* Chapters Section */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6">الفصول ({chapters.length})</h2>
+          
+          {loadingChapters ? (
+            <div className="flex justify-center py-8">
+              <Loader className="animate-spin w-8 h-8" />
+            </div>
+          ) : chapters.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>لم يتم العثور على فصول متاحة</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {chapters.map((chapter) => (
+                <button
+                  key={chapter.hid}
+                  onClick={() => handleChapterSelect(chapter.hid)}
+                  className="p-4 bg-card hover:bg-card/80 rounded-lg transition-all hover:shadow-lg"
+                >
+                  <h4 className="font-bold text-right">{chapter.title || `الفصل ${chapter.chap}`}</h4>
+                  <p className="text-sm text-gray-400 text-right">الفصل: {chapter.chap}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Image Viewer */}
       {showImageViewer && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-between select-none">
-          <div className="w-full bg-gradient-to-b from-black/80 to-transparent p-4 flex items-center justify-between absolute top-0 z-10 transition-opacity opacity-0 hover:opacity-100 sm:opacity-100">
-            <div className="text-white font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
-              صفحة {chapterImages.length > 0 ? currentImageIndex + 1 : 0} / {chapterImages.length || 0}
+        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center">
+          <div className="w-full h-full flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 bg-black/50">
+              <button 
+                onClick={() => setShowImageViewer(false)}
+                className="p-2 hover:bg-white/10 rounded-lg"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <span className="text-sm text-gray-400">
+                {currentImageIndex + 1} / {chapterImages.length}
+              </span>
             </div>
-            <button onClick={() => setShowImageViewer(false)} className="p-2 bg-black/50 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-colors">
-              <X className="w-6 h-6" />
-            </button>
-          </div>
 
-          <div className="flex-1 w-full flex items-center justify-center overflow-hidden relative mt-12 mb-12">
-            {viewerError ? (
-              <div className="text-red-400 text-center flex flex-col items-center bg-red-900/20 p-8 rounded-lg border border-red-800/50">
-                <AlertCircle className="w-12 h-12 mb-4" />
-                <p className="text-lg font-medium">{viewerError}</p>
-              </div>
-            ) : chapterImages.length > 0 ? (
-              <img
-                src={chapterImages[currentImageIndex]}
-                alt={`صفحة ${currentImageIndex + 1}`}
-                onClick={handleImageClick}
-                className="max-h-full max-w-full object-contain cursor-pointer transition-transform duration-200"
-                style={{ cursor: 'url(https://cdn-icons-png.flaticon.com/32/1159/1159633.png) 16 16, auto' }}
+            {/* Image Display */}
+            <div className="flex-1 flex items-center justify-center overflow-hidden relative">
+              {viewerError ? (
+                <div className="text-center">
+                  <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+                  <p className="text-red-400">{viewerError}</p>
+                </div>
+              ) : (
+                <>
+                  <button 
+                    onClick={prevPage}
+                    className="absolute left-4 p-2 hover:bg-white/10 rounded-lg z-10"
+                  >
+                    <ChevronLeft className="w-8 h-8" />
+                  </button>
+
+                  <img 
+                    src={chapterImages[currentImageIndex]}
+                    alt={`صفحة ${currentImageIndex + 1}`}
+                    className="max-h-full max-w-full object-contain"
+                  />
+
+                  <button 
+                    onClick={nextPage}
+                    className="absolute right-4 p-2 hover:bg-white/10 rounded-lg z-10"
+                  >
+                    <ChevronRight className="w-8 h-8" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full h-1 bg-gray-700">
+              <div 
+                className="h-full bg-gradient-to-r from-purple-600 to-cyan-500"
+                style={{ width: `${((currentImageIndex + 1) / chapterImages.length) * 100}%` }}
               />
-            ) : (
-              <div className="text-gray-400 text-center flex flex-col items-center">
-                <Loader className="w-10 h-10 animate-spin mb-4 text-purple-500" />
-                <p className="text-lg">جاري تحميل الفصل...</p>
-              </div>
-            )}
-          </div>
-
-          <div className="w-full h-1 bg-gray-800 absolute bottom-0">
-            <div className="h-full bg-purple-600 transition-all duration-300" style={{ width: `${chapterImages.length > 0 ? ((currentImageIndex + 1) / chapterImages.length) * 100 : 0}%` }}></div>
+            </div>
           </div>
         </div>
       )}
