@@ -1,9 +1,10 @@
 import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
-import { getMangaWithChapters, getChapterPages, buildImageUrl } from '@/lib/mangadexService';
+import { buildImageUrl } from '@/lib/mangadexService';
+import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface MangaDetailData {
   mal_id: number;
@@ -34,6 +35,8 @@ export default function MangaDetail() {
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [mangaDexId, setMangaDexId] = useState<string | null>(null);
 
+
+
   useEffect(() => {
     const fetchMangaDetail = async () => {
       try {
@@ -54,12 +57,6 @@ export default function MangaDetail() {
             if (searchData.data && searchData.data.length > 0) {
               const dexId = searchData.data[0].id;
               setMangaDexId(dexId);
-              
-              // جلب الفصول مع الفلترة الذكية
-              const chaptersData = await getMangaWithChapters(dexId);
-              if (chaptersData.chapters && chaptersData.chapters.length > 0) {
-                setChapters(chaptersData.chapters);
-              }
             }
           } catch (chapErr) {
             console.error('Error fetching chapters:', chapErr);
@@ -77,12 +74,28 @@ export default function MangaDetail() {
     fetchMangaDetail();
   }, [id]);
 
+  // استدعاء الفصول عند تحديد المانجا
+  const chaptersQuery = trpc.manga.getChapters.useQuery(mangaDexId || '', {
+    enabled: !!mangaDexId,
+  });
+
+  // تحديث الفصول عند تحميلها
+  React.useEffect(() => {
+    if (chaptersQuery.data) {
+      setChapters(chaptersQuery.data);
+      setLoadingChapters(false);
+    }
+  }, [chaptersQuery.data]);
+
   const handleChapterSelect = async (chapterId: string) => {
     try {
       setChapterImages([]); 
       setViewerError(null);
       
-      const pages = await getChapterPages(chapterId);
+      // استدعاء API لجلب صور الفصل
+      const response = await fetch(`/api/trpc/manga.getChapterPages?input=${encodeURIComponent(JSON.stringify({ json: chapterId }))}`);
+      const result = await response.json();
+      const pages = result.result?.data;
       
       if (!pages || !pages.chapter || !pages.chapter.data || pages.chapter.data.length === 0) {
         setViewerError("هذا الفصل لا يحتوي على صور متاحة.");

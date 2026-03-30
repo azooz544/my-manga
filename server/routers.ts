@@ -17,6 +17,50 @@ export const appRouter = router({
     }),
   }),
 
+  manga: router({
+    getChapters: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'string') return val;
+        throw new Error('Expected string');
+      })
+      .query(async ({ input: mangaDexId }) => {
+        try {
+          const response = await fetch(
+            `https://api.mangadex.org/manga/${mangaDexId}/feed?translatedLanguage[]=ar&translatedLanguage[]=en&order[chapter]=asc&limit=500`
+          );
+          const data = await response.json();
+          
+          // فلترة الفصول الحقيقية فقط
+          const validChapters = data.data.filter((ch: any) => 
+            ch.attributes && ch.attributes.pages > 0 && ch.attributes.externalUrl === null
+          );
+
+          return validChapters;
+        } catch (error) {
+          console.error('Error fetching chapters:', error);
+          return [];
+        }
+      }),
+    
+    getChapterPages: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'string') return val;
+        throw new Error('Expected string');
+      })
+      .query(async ({ input: chapterId }) => {
+        try {
+          const response = await fetch(
+            `https://api.mangadex.org/at-home/server/${chapterId}`
+          );
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error('Error fetching chapter pages:', error);
+          throw error;
+        }
+      }),
+  }),
+
   // TODO: add feature routers here, e.g.
   // todo: router({
   //   list: protectedProcedure.query(({ ctx }) =>
