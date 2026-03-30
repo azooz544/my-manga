@@ -95,9 +95,6 @@ export async function getTopManga(page: number = 1, filter: string = 'all'): Pro
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('limit', '25');
-    if (filter !== 'all') {
-      params.append('filter', filter);
-    }
 
     const response = await fetch(`${JIKAN_API}/top/manga?${params}`);
     if (!response.ok) throw new Error('Failed to fetch top manga');
@@ -160,14 +157,14 @@ export async function getMangaByGenre(genreId: number, page: number = 1): Promis
 export function transformJikanManga(manga: JikanManga) {
   return {
     id: manga.mal_id.toString(),
-    image: manga.images.jpg.large_image_url || manga.images.jpg.image_url,
+    image: manga.images.jpg.large_image_url || manga.images.jpg.image_url || 'https://via.placeholder.com/300x400?text=Manga',
     title: manga.title || manga.title_english || 'Unknown',
     chapter: `${manga.chapters || 0} فصل`,
     view: `${manga.members?.toLocaleString() || 0} متابع`,
     description: manga.synopsis || 'لا توجد وصف متاح',
-    status: manga.status,
-    score: manga.score,
-    genres: manga.genres.map(g => g.name),
-    authors: manga.authors.map(a => a.name).join(', '),
+    status: manga.status || 'Unknown',
+    score: manga.score || 0,
+    genres: manga.genres?.map(g => g.name) || [],
+    authors: manga.authors?.map(a => a.name).join(', ') || 'Unknown',
   };
 }
