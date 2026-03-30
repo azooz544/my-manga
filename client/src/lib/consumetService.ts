@@ -1,44 +1,48 @@
 import axios from 'axios';
 
-const CONSUMET_URL = 'https://api.consumet.org/manga/mangakakalot';
+const COMICK_API = 'https://api.comick.cc';
 
 export const getMangaChapters = async (title: string) => {
   try {
-    // إظهار رسالة في الكونسول لتتبع البحث
-    console.log(`جاري البحث عن المانجا باسم: ${title}`);
-    
-    const searchRes = await axios.get(`${CONSUMET_URL}/${encodeURIComponent(title)}`);
-    
-    if (!searchRes.data.results || searchRes.data.results.length === 0) {
-      alert(`لم نتمكن من العثور على فصول لـ "${title}" في قاعدة بيانات Mangakakalot.`);
+    // 1. البحث عن المانجا باسمها
+    const searchRes = await axios.get(`${COMICK_API}/v1.0/search?q=${encodeURIComponent(title)}&limit=1`);
+
+    if (!searchRes.data || searchRes.data.length === 0) {
       return [];
     }
 
-    const mangaId = searchRes.data.results[0].id;
-    console.log(`تم العثور على المانجا، الـ ID: ${mangaId}`);
+    const mangaHid = searchRes.data[0].hid;
 
-    const infoRes = await axios.get(`${CONSUMET_URL}/info`, {
-      params: { id: mangaId }
-    });
+    // 2. جلب قائمة الفصول
+    const chaptersRes = await axios.get(`${COMICK_API}/comic/${mangaHid}/chapters?limit=100`);
 
-    return infoRes.data.chapters || [];
-  } catch (error: any) {
-    // هذي الرسالة بتطلع لك لو السيرفر فيه مشكلة أو رافض الاتصال
-    alert(`تعذر الاتصال بسيرفر الفصول (Consumet). تفاصيل الخطأ: ${error.message}`);
-    console.error('خطأ في جلب الفصول:', error);
+    // 3. تهيئة البيانات لتناسب واجهة موقعك مباشرة
+    const chapters = chaptersRes.data.chapters.map((ch: any) => ({
+      id: ch.hid, // نستخدم المعرف الخاص بهم لجلب الصور لاحقاً
+      title: ch.title,
+      chapter: ch.chap
+    }));
+
+    return chapters;
+  } catch (error) {
+    console.error('خطأ في جلب الفصول من ComicK:', error);
     return [];
   }
 };
 
 export const getChapterImages = async (chapterId: string) => {
   try {
-    const response = await axios.get(`${CONSUMET_URL}/read`, {
-      params: { chapterId: chapterId }
-    });
+    // جلب بيانات الفصل لاستخراج الصور
+    const response = await axios.get(`${COMICK_API}/chapter/${chapterId}`);
     
-    return response.data.map((item: any) => item.img);
-  } catch (error: any) {
-    alert(`خطأ في جلب الصور: ${error.message}`);
+    // تركيب روابط الصور المباشرة
+    const images = response.data.chapter.md_images.map((img: any) =>
+      `https://meo.comick.pictures/${img.b2key}`
+    );
+    
+    return images;
+  } catch (error) {
+    console.error('خطأ في جلب الصور من ComicK:', error);
     throw error;
   }
 };

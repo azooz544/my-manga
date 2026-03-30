@@ -1,6 +1,6 @@
 import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
-import { getMangaChapters, getChapterPages, buildImageUrl } from '@/lib/mangadexService';
+import { getMangaChapters, getChapterImages } from '@/lib/consumetService';
 import { Button } from '@/components/ui/button';
 import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
@@ -31,7 +31,7 @@ export default function MangaDetail() {
   const [chapterImages, setChapterImages] = useState<string[]>([]);
   const [chapters, setChapters] = useState<any[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
-  const [mangaDexId, setMangaDexId] = useState<string | null>(null);
+  const [loadingChapters, setLoadingChapters] = useState(false);
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -44,23 +44,15 @@ export default function MangaDetail() {
           setManga(mangaData);
           
           try {
-            // البحث عن المانجا على MangaDex
+            setLoadingChapters(true);
+            // جلب الفصول باستخدام ComicK API
             const searchQuery = mangaData.title_english || mangaData.title;
-            const searchRes = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(searchQuery)}&limit=1`);
-            const searchData = await searchRes.json();
-
-            if (searchData.data && searchData.data.length > 0) {
-              const dexId = searchData.data[0].id;
-              setMangaDexId(dexId);
-              
-              // جلب الفصول
-              const chaptersData = await getMangaChapters(dexId, 100);
-              if (chaptersData.data && chaptersData.data.length > 0) {
-                setChapters(chaptersData.data);
-              }
-            }
+            const fetchedChapters = await getMangaChapters(searchQuery);
+            setChapters(fetchedChapters);
           } catch (chapErr) {
             console.error('Error fetching chapters:', chapErr);
+          } finally {
+            setLoadingChapters(false);
           }
         }
       } catch (err) {
@@ -78,23 +70,20 @@ export default function MangaDetail() {
       setChapterImages([]); 
       setViewerError(null);
       
-      const pages = await getChapterPages(chapterId);
+      // جلب الصور من ComicK
+      const images = await getChapterImages(chapterId);
       
-      if (!pages || !pages.chapter || !pages.chapter.data || pages.chapter.data.length === 0) {
-        setViewerError("هذا الفصل لا يحتوي على صور متاحة.");
+      if (!images || images.length === 0) {
+        setViewerError("تعذر تحميل صور هذا الفصل. قد يكون المصدر معطلاً حالياً.");
         return;
       }
 
-      const images = pages.chapter.data.map((imageName: string) =>
-        buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
-      );
-      
       setChapterImages(images);
       setSelectedChapter(chapterId);
       setCurrentImageIndex(0);
     } catch (err: any) {
       console.error('Error loading chapter:', err);
-      setViewerError("حدث خطأ في تحميل صور الفصل. حاول مرة أخرى.");
+      setViewerError("حدث خطأ في الاتصال بالخادم. حاول مرة أخرى لاحقاً.");
     }
   };
 
@@ -175,7 +164,7 @@ export default function MangaDetail() {
                   </div>
                 </div>
                 <div className="pt-4 space-y-3">
-                  <Button onClick={() => setShowImageViewer(true)} className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2" disabled={chapters.length === 0}>
+                  <Button onClick={() => setShowImageViewer(true)} className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2" disabled={chapters.length === 0 || loadingChapters}>
                     <Play className="w-4 h-4" /> اقرأ الآن
                   </Button>
                 </div>
@@ -197,7 +186,11 @@ export default function MangaDetail() {
                 <BookOpen className="w-5 h-5" /> الفصول المتاحة ({chapters.length})
               </h2>
               <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                {chapters.length > 0 ? (
+                {loadingChapters ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader className="w-6 h-6 text-purple-500 animate-spin" />
+                  </div>
+                ) : chapters.length > 0 ? (
                   chapters.map((chapter) => (
                     <button
                       key={chapter.id}
@@ -209,7 +202,7 @@ export default function MangaDetail() {
                     >
                       <div className="flex-1 text-left">
                         <p className="text-white font-medium group-hover:text-accent transition-colors">
-                          الفصل {chapter.attributes?.chapter || 'بدون رقم'}
+                          {chapter.title || `الفصل ${chapter.chapter || 'بدون رقم'}`}
                         </p>
                       </div>
                       <ChevronLeft className="w-4 h-4 text-gray-400 group-hover:text-accent" />
