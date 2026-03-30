@@ -26,6 +26,7 @@ export interface MangaDexChapterResponse {
 }
 
 export interface ChapterPages {
+  baseUrl: string;
   chapter: {
     hash: string;
     data: string[];
@@ -75,17 +76,15 @@ export async function getChapterPages(chapterId: string): Promise<ChapterPages> 
 }
 
 /**
- * Build image URL for a chapter page
+ * Build image URL for a chapter page using baseUrl from API
  */
 export function buildImageUrl(
-  chapterId: string,
+  baseUrl: string,
   hash: string,
-  imageName: string,
-  dataSaver: boolean = false
+  imageName: string
 ): string {
-  const baseUrl = 'https://uploads.mangadex.org';
-  const quality = dataSaver ? 'data-saver' : 'data';
-  return `${baseUrl}/${quality}/${hash}/${imageName}`;
+  // الرابط النهائي يتكون من: السيرفر / الجودة / الهاش / اسم الصورة
+  return `${baseUrl}/data/${hash}/${imageName}`;
 }
 
 /**
@@ -118,7 +117,7 @@ export async function getFirstChapterImages(mangaId: string): Promise<string[]> 
     const pages = await getChapterPages(firstChapter.id);
 
     return pages.chapter.data.map((imageName) =>
-      buildImageUrl(firstChapter.id, pages.chapter.hash, imageName)
+      buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
     );
   } catch (error) {
     console.error('Error fetching first chapter images:', error);

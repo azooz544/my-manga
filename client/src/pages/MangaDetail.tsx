@@ -61,7 +61,7 @@ export default function MangaDetail() {
               try {
                 const pages = await getChapterPages(firstChapter.id);
                 const images = pages.chapter.data.map((imageName: string) =>
-                  buildImageUrl(firstChapter.id, pages.chapter.hash, imageName)
+                  buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
                 );
                 setChapterImages(images);
                 setSelectedChapter(firstChapter.id);
@@ -88,7 +88,7 @@ export default function MangaDetail() {
     try {
       const pages = await getChapterPages(chapterId);
       const images = pages.chapter.data.map((imageName: string) =>
-        buildImageUrl(chapterId, pages.chapter.hash, imageName)
+        buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
       );
       setChapterImages(images);
       setSelectedChapter(chapterId);
