@@ -35,8 +35,13 @@ export default function MangaGrid() {
           response = await getTopManga(currentPage, selectedType);
         }
         
-        const transformedManga = response.data.map(transformJikanManga);
-        setMangaList(transformedManga);
+        if (response && response.data && Array.isArray(response.data)) {
+          const transformedManga = response.data.map(transformJikanManga);
+          setMangaList(transformedManga);
+        } else {
+          setMangaList([]);
+          setError('لم يتم العثور على بيانات المانجا');
+        }
       } catch (err) {
         setError('فشل في تحميل بيانات المانجا. يرجى المحاولة لاحقاً.');
         console.error('Error fetching manga:', err);

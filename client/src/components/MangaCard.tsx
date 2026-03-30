@@ -18,8 +18,8 @@ export default function MangaCard({ manga }: MangaCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <Link href={`/manga/${manga.id}`}>
-      <a className="block group">
+    <div className="block group">
+      <Link href={`/manga/${manga.id}`}>
         <div
           className="relative rounded-lg overflow-hidden bg-card border border-border transition-all duration-300 hover:border-accent hover:shadow-lg hover:shadow-purple-600/20 cursor-pointer"
           onMouseEnter={() => setIsHovered(true)}
@@ -78,7 +78,7 @@ export default function MangaCard({ manga }: MangaCardProps) {
             </div>
           </div>
         </div>
-      </a>
-    </Link>
+      </Link>
+    </div>
   );
 }
