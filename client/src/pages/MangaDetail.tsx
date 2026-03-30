@@ -1,8 +1,8 @@
 import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
-import { trpc } from '@/lib/trpc';
+import { trpcClient } from '@/lib/trpcClient';
 import { Button } from '@/components/ui/button';
-import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
+import { Play, Star, Calendar, BookOpen, Tag, Loader, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 interface MangaDetailData {
@@ -32,8 +32,8 @@ export default function MangaDetail() {
   const [chapters, setChapters] = useState<any[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
   const [loadingChapters, setLoadingChapters] = useState(false);
-  const [comickHid, setComickHid] = useState<string | null>(null);
 
+  // Fetch manga detail from Jikan
   useEffect(() => {
     const fetchMangaDetail = async () => {
       try {
@@ -44,22 +44,11 @@ export default function MangaDetail() {
           const mangaData = response.data;
           setManga(mangaData);
           
-          try {
-            setLoadingChapters(true);
-            // البحث عن المانجا على ComicK
-            const searchQuery = mangaData.title_english || mangaData.title;
-            const searchRes = await fetch(`/api/trpc/manga.search?input=${encodeURIComponent(JSON.stringify({ json: searchQuery }))}`).then(r => r.json()).then(d => d.result?.data || []);
-            
-            if (searchRes && searchRes.length > 0) {
-              const hid = searchRes[0].hid;
-              setComickHid(hid);
-            }
-          } catch (chapErr) {
-            console.error('Error fetching chapters:', chapErr);
-            setLoadingChapters(false);
-          }
+          // Search for manga on backend and load chapters
+          await searchAndLoadChapters(mangaData.mal_id.toString());
         }
-      } catch (err) {
+      } catch (err: any) {
+        console.error('[MangaDetail] Error fetching manga:', err);
         setError('فشل في تحميل بيانات المانجا');
       } finally {
         setLoading(false);
@@ -69,29 +58,43 @@ export default function MangaDetail() {
     fetchMangaDetail();
   }, [id]);
 
-  // استدعاء الفصول عند تحديد المانجا
-  const chaptersQuery = trpc.manga.getChapters.useQuery(comickHid || '', {
-    enabled: !!comickHid,
-  });
+  const searchAndLoadChapters = async (malId: string) => {
+    try {
+      setLoadingChapters(true);
+      setError(null);
 
-  // تحديث الفصول عند تحميلها
-  useEffect(() => {
-    if (chaptersQuery.data) {
-      setChapters(chaptersQuery.data);
+      console.log(`[MangaDetail] Loading chapters for malId: ${malId}`);
+      
+      // استدعاء tRPC getChapters procedure
+      const chaptersData = await trpcClient.manga.getChapters(malId);
+      console.log(`[MangaDetail] Got chapters:`, chaptersData);
+      
+      if (chaptersData && Array.isArray(chaptersData) && chaptersData.length > 0) {
+        setChapters(chaptersData);
+      } else {
+        setError('لم يتم العثور على فصول لهذه المانجا');
+      }
+    } catch (searchErr: any) {
+      console.error('[MangaDetail] Error loading chapters:', searchErr);
+      setError(searchErr.message || 'خطأ في جلب الفصول');
+    } finally {
       setLoadingChapters(false);
     }
-  }, [chaptersQuery.data]);
+  };
 
   const handleChapterSelect = async (chapterId: string) => {
     try {
       setChapterImages([]); 
       setViewerError(null);
       
-      // استدعاء API لجلب صور الفصل من ComicK
-      const imagesRes = await fetch(`/api/trpc/manga.getChapterImages?input=${encodeURIComponent(JSON.stringify({ json: chapterId }))}`).then(r => r.json());
-      const images = imagesRes.result?.data || [];
+      console.log(`[MangaDetail] Loading chapter: ${chapterId}`);
       
-      if (!images || images.length === 0) {
+      // استدعاء tRPC getChapterImages procedure
+      const images = await trpcClient.manga.getChapterImages(chapterId);
+      
+      console.log(`[MangaDetail] Got images:`, images);
+
+      if (!images || !Array.isArray(images) || images.length === 0) {
         setViewerError("هذا الفصل لا يحتوي على صور متاحة.");
         return;
       }
@@ -101,8 +104,8 @@ export default function MangaDetail() {
       setCurrentImageIndex(0);
       setShowImageViewer(true);
     } catch (err: any) {
-      console.error('Error loading chapter:', err);
-      setViewerError("حدث خطأ في تحميل صور الفصل. حاول مرة أخرى.");
+      console.error('[MangaDetail] Error loading chapter:', err);
+      setViewerError(err.message || "حدث خطأ في تحميل صور الفصل. حاول مرة أخرى.");
     }
   };
 
@@ -249,6 +252,11 @@ export default function MangaDetail() {
           {loadingChapters ? (
             <div className="flex justify-center py-8">
               <Loader className="animate-spin w-8 h-8" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-400 bg-red-900/20 rounded-lg p-4">
+              <AlertCircle className="w-12 h-12 mx-auto mb-3" />
+              <p>{error}</p>
             </div>
           ) : chapters.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
