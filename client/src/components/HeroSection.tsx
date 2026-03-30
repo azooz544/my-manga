@@ -25,14 +25,14 @@ export default function HeroSection() {
           {/* Title */}
           <div className="mb-6 animate-fade-in">
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 leading-tight">
-              مرحباً بك في عالم الأنمي
+              مرحباً بك في عالم <span className="bg-gradient-to-l from-cyan-400 to-purple-600 bg-clip-text text-transparent">المانجا</span>
             </h1>
             <div className="h-1 w-20 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-full"></div>
           </div>
 
           {/* Description */}
           <p className="text-lg md:text-xl text-gray-300 mb-8 leading-relaxed max-w-xl">
-            اكتشف أفضل الأنمي والأفلام اليابانية مع جودة عالية وتحميل سريع. انضم إلى ملايين المحبين حول العالم.
+            اكتشف أفضل سلاسل المانجا والكوميكس اليابانية بجودة عالية وتحميل سريع. انضم إلى ملايين المعجبين حول العالم.
           </p>
 
           {/* CTA Buttons */}
@@ -41,7 +41,7 @@ export default function HeroSection() {
               className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 text-lg font-semibold flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-purple-600/50"
             >
               <Play className="w-5 h-5" />
-              ابدأ المشاهدة
+              ابدأ القراءة
             </Button>
             <Button
               variant="outline"
@@ -56,15 +56,15 @@ export default function HeroSection() {
           <div className="flex gap-8 mt-12 pt-8 border-t border-gray-700">
             <div>
               <p className="text-3xl font-bold text-cyan-500">500+</p>
-              <p className="text-gray-400">أنمي متاح</p>
+              <p className="text-gray-400">سلسلة مانجا</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-purple-600">1M+</p>
-              <p className="text-gray-400">مستخدم نشط</p>
+              <p className="text-3xl font-bold text-purple-600">10K+</p>
+              <p className="text-gray-400">فصل</p>
             </div>
             <div>
-              <p className="text-3xl font-bold text-cyan-500">4K</p>
-              <p className="text-gray-400">جودة عالية</p>
+              <p className="text-3xl font-bold text-cyan-500">24/7</p>
+              <p className="text-gray-400">متاح</p>
             </div>
           </div>
         </div>

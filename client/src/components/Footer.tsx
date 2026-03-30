@@ -10,7 +10,7 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-bold text-white mb-4">عن الموقع</h3>
             <p className="text-gray-400 text-sm leading-relaxed">
-              موقع متخصص في توفير أفضل الأنمي والأفلام اليابانية بجودة عالية وتحميل سريع.
+              موقع Team A متخصص في توفير أفضل سلاسل المانجا والكوميكس بجودة عالية وتحميل سريع.
             </p>
           </div>
 
@@ -54,12 +54,12 @@ export default function Footer() {
         {/* Bottom Footer */}
         <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-right gap-4">
           <p className="text-gray-400 text-sm">
-            © 2024 موقع الأنمي. جميع الحقوق محفوظة.
+            © 2024 Team A. جميع الحقوق محفوظة.
           </p>
           <div className="flex items-center gap-2 text-gray-400 text-sm">
             <span>تم إنشاؤه بـ</span>
             <Heart className="w-4 h-4 text-red-500 fill-red-500" />
-            <span>لمحبي الأنمي</span>
+            <span>لمحبي المانجا</span>
           </div>
         </div>
       </div>

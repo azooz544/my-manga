@@ -1,6 +1,6 @@
 import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
-import AnimeGrid from '@/components/AnimeGrid';
+import MangaGrid from '@/components/MangaGrid';
 import Footer from '@/components/Footer';
 
 /**
@@ -9,13 +9,16 @@ import Footer from '@/components/Footer';
  * - Arabic-friendly typography (Tajawal)
  * - Dynamic layout with smooth transitions
  * - High contrast for better readability
+ * 
+ * Team A - Manga Download Site
+ * Powered by Manga Hook API
  */
 export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
       <HeroSection />
-      <AnimeGrid />
+      <MangaGrid />
       <Footer />
     </div>
   );
