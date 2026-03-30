@@ -2,7 +2,7 @@ import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
 import { getMangaWithChapters, getChapterPages, buildImageUrl } from '@/lib/mangadexService';
 import { Button } from '@/components/ui/button';
-import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 interface MangaDetailData {
@@ -15,19 +15,13 @@ interface MangaDetailData {
       large_image_url: string;
     };
   };
-  authors: Array<{
-    name: string;
-  }>;
+  authors: Array<{ name: string }>;
   status: string;
   chapters: number;
   volumes: number;
   score: number;
-  genres: Array<{
-    name: string;
-  }>;
-  published: {
-    from: string;
-  };
+  genres: Array<{ name: string }>;
+  published: { from: string };
 }
 
 export default function MangaDetail() {
@@ -35,13 +29,13 @@ export default function MangaDetail() {
   const [manga, setManga] = useState<MangaDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewerError, setViewerError] = useState<string | null>(null); // حالة جديدة لأخطاء القارئ
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [chapterImages, setChapterImages] = useState<string[]>([]);
   const [chapters, setChapters] = useState<any[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
 
-  // جلب البيانات
   useEffect(() => {
     const fetchMangaDetail = async () => {
       try {
@@ -62,21 +56,12 @@ export default function MangaDetail() {
               const chaptersData = await getMangaWithChapters(mangaDexId);
               
               if (chaptersData && chaptersData.chapters) {
-                setChapters(chaptersData.chapters);
+                // فلترة الفصول: نستبعد الفصول الخارجية اللي مافيها صور
+                const validChapters = chaptersData.chapters.filter((ch: any) => 
+                  ch.attributes?.externalUrl === null
+                );
                 
-                if (chaptersData.chapters.length > 0) {
-                  const firstChapter = chaptersData.chapters[0];
-                  try {
-                    const pages = await getChapterPages(firstChapter.id);
-                    const images = pages.chapter.data.map((imageName: string) =>
-                      buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
-                    );
-                    setChapterImages(images);
-                    setSelectedChapter(firstChapter.id);
-                  } catch (pageErr) {
-                    console.error('Error fetching chapter pages:', pageErr);
-                  }
-                }
+                setChapters(validChapters);
               }
             }
           } catch (chapErr) {
@@ -85,7 +70,6 @@ export default function MangaDetail() {
         }
       } catch (err) {
         setError('فشل في تحميل بيانات المانجا');
-        console.error('Error fetching manga detail:', err);
       } finally {
         setLoading(false);
       }
@@ -94,42 +78,15 @@ export default function MangaDetail() {
     fetchMangaDetail();
   }, [id]);
 
-  // دوال التنقل في صفحات المانجا
-  const nextPage = useCallback(() => {
-    setCurrentImageIndex((prev) => Math.min(chapterImages.length - 1, prev + 1));
-  }, [chapterImages.length]);
-
-  const prevPage = useCallback(() => {
-    setCurrentImageIndex((prev) => Math.max(0, prev - 1));
-  }, []);
-
-  // التحكم بالكيبورد (الأسهم يمين/يسار للتقليب، وEsc للإغلاق)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!showImageViewer) return;
-      
-      if (e.key === 'ArrowLeft') {
-        nextPage(); // السهم الأيسر ينقلك للصفحة التالية (نظام المانجا)
-      } else if (e.key === 'ArrowRight') {
-        prevPage(); // السهم الأيمن ينقلك للصفحة السابقة
-      } else if (e.key === 'Escape') {
-        setShowImageViewer(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showImageViewer, nextPage, prevPage]);
-
   const handleChapterSelect = async (chapterId: string) => {
     try {
-      setChapterImages([]); // تصفير الصور لعرض التحميل
+      setChapterImages([]); 
+      setViewerError(null); // تصفير الأخطاء السابقة
+      
       const pages = await getChapterPages(chapterId);
-
-      // التحقق من وجود الصور فعلياً داخل الفصل
+      
       if (!pages || !pages.chapter || !pages.chapter.data || pages.chapter.data.length === 0) {
-        alert('عذراً، هذا الفصل لا يحتوي على صور داخلية (قد يكون رابطاً لموقع المترجم أو غير متوفر حالياً). جرب فصلاً آخر.');
-        setShowImageViewer(false);
+        setViewerError("هذا الفصل لا يحتوي على صور، قد يكون رابطاً لموقع خارجي.");
         return;
       }
 
@@ -142,24 +99,35 @@ export default function MangaDetail() {
       setCurrentImageIndex(0);
     } catch (err: any) {
       console.error('Error loading chapter:', err);
-      // إظهار رسالة خطأ واضحة لك لتسهيل حل المشكلة
-      alert(`حدث خطأ أثناء تحميل صور الفصل: ${err.message}`);
-      setShowImageViewer(false);
+      setViewerError("تعذر تحميل صور هذا الفصل. السيرفر قد يكون مشغولاً أو الفصل محذوف.");
     }
   };
 
-  // التحكم في النقر على الصورة للتقليب
+  const nextPage = useCallback(() => {
+    setCurrentImageIndex((prev) => Math.min(chapterImages.length - 1, prev + 1));
+  }, [chapterImages.length]);
+
+  const prevPage = useCallback(() => {
+    setCurrentImageIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!showImageViewer) return;
+      if (e.key === 'ArrowLeft') nextPage();
+      else if (e.key === 'ArrowRight') prevPage();
+      else if (e.key === 'Escape') setShowImageViewer(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showImageViewer, nextPage, prevPage]);
+
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
     const { clientX, target } = e;
     const { left, width } = (target as HTMLImageElement).getBoundingClientRect();
-    const clickX = clientX - left;
-    
-    // إذا ضغط على النصف الأيسر يروح للصفحة التالية، النصف الأيمن للصفحة السابقة
-    if (clickX < width / 2) {
-      nextPage();
-    } else {
-      prevPage();
-    }
+    if (clientX - left < width / 2) nextPage();
+    else prevPage();
   };
 
   if (loading) {
@@ -177,8 +145,7 @@ export default function MangaDetail() {
           <h1 className="text-3xl font-bold text-white mb-4">لم يتم العثور على المانجا</h1>
           <Link href="/">
             <div className="text-accent hover:underline flex items-center justify-center gap-2 cursor-pointer">
-              <ArrowRight className="w-4 h-4" />
-              العودة إلى الرئيسية
+              <ArrowRight className="w-4 h-4" /> العودة إلى الرئيسية
             </div>
           </Link>
         </div>
@@ -186,32 +153,17 @@ export default function MangaDetail() {
     );
   }
 
-  const publishYear = new Date(manga.published.from).getFullYear();
-  const authorNames = manga.authors.map(a => a.name).join(', ');
-
   return (
     <div className="min-h-screen bg-background pt-20">
-      {/* جزء معلومات المانجا (لم يتغير) */}
-      <div
-        className="relative w-full h-96 bg-cover bg-center"
-        style={{
-          backgroundImage: `linear-gradient(135deg, rgba(15, 15, 15, 0.8), rgba(107, 33, 168, 0.4)), url('${manga.images.jpg.large_image_url}')`,
-          backgroundSize: 'cover'
-        }}
-      >
+      <div className="relative w-full h-96 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(135deg, rgba(15, 15, 15, 0.8), rgba(107, 33, 168, 0.4)), url('${manga.images.jpg.large_image_url}')` }}>
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background"></div>
       </div>
 
       <div className="container relative -mt-32 mb-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* الشريط الجانبي */}
           <div className="md:col-span-1">
             <div className="bg-card border border-border rounded-lg overflow-hidden sticky top-24">
-              <img
-                src={manga.images.jpg.large_image_url}
-                alt={manga.title}
-                className="w-full aspect-video object-cover"
-              />
+              <img src={manga.images.jpg.large_image_url} alt={manga.title} className="w-full aspect-video object-cover" />
               <div className="p-6 space-y-4">
                 <div>
                   <p className="text-xs text-gray-400 mb-2">التقييم</p>
@@ -221,55 +173,35 @@ export default function MangaDetail() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-2">الحالة</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                    manga.status === 'Finished' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
-                  }`}>
-                    {manga.status === 'Finished' ? 'مكتملة' : 'جاري النشر'}
-                  </span>
+                  <p className="text-xs text-gray-400 mb-2">عدد الفصول المتاحة للقراءة</p>
+                  <div className="flex items-center gap-2 text-white">
+                    <BookOpen className="w-4 h-4" />
+                    <span>{chapters.length}</span>
+                  </div>
                 </div>
                 <div className="pt-4 space-y-3">
-                  <Button 
-                    onClick={() => setShowImageViewer(true)}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2"
-                  >
-                    <Play className="w-4 h-4" />
-                    اقرأ الآن
+                  <Button onClick={() => setShowImageViewer(true)} className="w-full bg-purple-600 hover:bg-purple-700 text-white gap-2" disabled={chapters.length === 0}>
+                    <Play className="w-4 h-4" /> اقرأ الآن
                   </Button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* المحتوى الرئيسي */}
           <div className="md:col-span-2">
             <div className="bg-card border border-border rounded-lg p-8 mb-8">
               <h1 className="text-4xl font-bold text-white mb-2">{manga.title}</h1>
-              <p className="text-lg text-gray-400 mb-6">بقلم: {authorNames || 'غير معروف'}</p>
-              <div className="mb-8">
+              <div className="mb-8 mt-6">
                 <h2 className="text-xl font-bold text-white mb-4">الوصف</h2>
                 <p className="text-gray-300 leading-relaxed line-clamp-6">{manga.synopsis}</p>
               </div>
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-white mb-4">الأنواع</h2>
-                <div className="flex flex-wrap gap-2">
-                  {manga.genres.map((genre, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-2 bg-purple-600/20 text-purple-300 px-4 py-2 rounded-full">
-                      <Tag className="w-4 h-4" />
-                      {genre.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
             </div>
 
-            {/* قائمة الفصول */}
             <div className="bg-card border border-border rounded-lg p-8">
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <BookOpen className="w-5 h-5" />
-                الفصول ({chapters.length})
+                <BookOpen className="w-5 h-5" /> الفصول المتاحة ({chapters.length})
               </h2>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
                 {chapters.length > 0 ? (
                   chapters.map((chapter) => (
                     <button
@@ -278,9 +210,7 @@ export default function MangaDetail() {
                         handleChapterSelect(chapter.id);
                         setShowImageViewer(true);
                       }}
-                      className={`w-full flex items-center justify-between p-3 border rounded-lg transition-colors group ${
-                        selectedChapter === chapter.id ? 'bg-purple-600/20 border-purple-500' : 'bg-secondary border-border hover:border-accent'
-                      }`}
+                      className={`w-full flex items-center justify-between p-3 border rounded-lg transition-colors group ${selectedChapter === chapter.id ? 'bg-purple-600/20 border-purple-500' : 'bg-secondary border-border hover:border-accent'}`}
                     >
                       <div className="flex-1 text-left">
                         <p className="text-white font-medium group-hover:text-accent transition-colors">
@@ -291,7 +221,7 @@ export default function MangaDetail() {
                     </button>
                   ))
                 ) : (
-                  <p className="text-gray-400 text-center py-4">لا توجد فصول متاحة</p>
+                  <p className="text-gray-400 text-center py-4">لا توجد فصول متاحة للقراءة المباشرة</p>
                 )}
               </div>
             </div>
@@ -299,35 +229,30 @@ export default function MangaDetail() {
         </div>
       </div>
 
-      {/* قارئ المانجا الاحترافي (Reader Mode) */}
       {showImageViewer && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-between select-none">
-          
-          {/* الشريط العلوي */}
-          <div className="w-full flex items-center justify-between p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full bg-gradient-to-b from-black/80 to-transparent p-4 flex items-center justify-between absolute top-0 z-10 transition-opacity opacity-0 hover:opacity-100 sm:opacity-100">
             <div className="text-white font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
-              صفحة {currentImageIndex + 1} / {chapterImages.length || 0}
+              صفحة {chapterImages.length > 0 ? currentImageIndex + 1 : 0} / {chapterImages.length || 0}
             </div>
-            <button
-              onClick={() => setShowImageViewer(false)}
-              className="p-2 bg-black/50 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-colors"
-            >
+            <button onClick={() => setShowImageViewer(false)} className="p-2 bg-black/50 hover:bg-red-600 text-white rounded-full backdrop-blur-sm transition-colors">
               <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* مساحة عرض الصورة */}
           <div className="flex-1 w-full flex items-center justify-center overflow-hidden relative mt-12 mb-12">
-            {chapterImages.length > 0 ? (
+            {viewerError ? (
+              <div className="text-red-400 text-center flex flex-col items-center bg-red-900/20 p-8 rounded-lg border border-red-800/50">
+                <AlertCircle className="w-12 h-12 mb-4" />
+                <p className="text-lg font-medium">{viewerError}</p>
+              </div>
+            ) : chapterImages.length > 0 ? (
               <img
                 src={chapterImages[currentImageIndex]}
                 alt={`صفحة ${currentImageIndex + 1}`}
                 onClick={handleImageClick}
                 className="max-h-full max-w-full object-contain cursor-pointer transition-transform duration-200"
-                style={{ cursor: 'url(https://cdn-icons-png.flaticon.com/32/1159/1159633.png) 16 16, auto' }} // مؤشر يدل على إمكانية النقر
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600x800?text=Error+Loading+Image';
-                }}
+                style={{ cursor: 'url(https://cdn-icons-png.flaticon.com/32/1159/1159633.png) 16 16, auto' }}
               />
             ) : (
               <div className="text-gray-400 text-center flex flex-col items-center">
@@ -337,14 +262,9 @@ export default function MangaDetail() {
             )}
           </div>
 
-          {/* شريط التقدم السفلي */}
           <div className="w-full h-1 bg-gray-800 absolute bottom-0">
-            <div 
-              className="h-full bg-purple-600 transition-all duration-300"
-              style={{ width: `${((currentImageIndex + 1) / chapterImages.length) * 100}%` }}
-            ></div>
+            <div className="h-full bg-purple-600 transition-all duration-300" style={{ width: `${chapterImages.length > 0 ? ((currentImageIndex + 1) / chapterImages.length) * 100 : 0}%` }}></div>
           </div>
-          
         </div>
       )}
     </div>
