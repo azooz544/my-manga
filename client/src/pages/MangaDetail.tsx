@@ -123,16 +123,28 @@ export default function MangaDetail() {
 
   const handleChapterSelect = async (chapterId: string) => {
     try {
-      setChapterImages([]); // تصفير الصور لعرض اللودينج
+      setChapterImages([]); // تصفير الصور لعرض التحميل
       const pages = await getChapterPages(chapterId);
+
+      // التحقق من وجود الصور فعلياً داخل الفصل
+      if (!pages || !pages.chapter || !pages.chapter.data || pages.chapter.data.length === 0) {
+        alert('عذراً، هذا الفصل لا يحتوي على صور داخلية (قد يكون رابطاً لموقع المترجم أو غير متوفر حالياً). جرب فصلاً آخر.');
+        setShowImageViewer(false);
+        return;
+      }
+
       const images = pages.chapter.data.map((imageName: string) =>
         buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
       );
+      
       setChapterImages(images);
       setSelectedChapter(chapterId);
       setCurrentImageIndex(0);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading chapter:', err);
+      // إظهار رسالة خطأ واضحة لك لتسهيل حل المشكلة
+      alert(`حدث خطأ أثناء تحميل صور الفصل: ${err.message}`);
+      setShowImageViewer(false);
     }
   };
 
