@@ -1,6 +1,6 @@
 import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
-import { getMangaWithChapters, getChapterPages, buildImageUrl } from '@/lib/mangadexService';
+import { getMangaChapters, getChapterImages } from '@/lib/consumetService'; // تم التغيير هنا
 import { Button } from '@/components/ui/button';
 import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
@@ -10,11 +10,7 @@ interface MangaDetailData {
   title: string;
   title_english: string;
   synopsis: string;
-  images: {
-    jpg: {
-      large_image_url: string;
-    };
-  };
+  images: { jpg: { large_image_url: string } };
   authors: Array<{ name: string }>;
   status: string;
   chapters: number;
@@ -29,7 +25,7 @@ export default function MangaDetail() {
   const [manga, setManga] = useState<MangaDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewerError, setViewerError] = useState<string | null>(null); // حالة جديدة لأخطاء القارئ
+  const [viewerError, setViewerError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [chapterImages, setChapterImages] = useState<string[]>([]);
@@ -47,25 +43,12 @@ export default function MangaDetail() {
           setManga(mangaData);
           
           try {
+            // جلب الفصول باستخدام Consumet
             const searchQuery = mangaData.title_english || mangaData.title;
-            const searchRes = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(searchQuery)}`);
-            const searchData = await searchRes.json();
-
-            if (searchData.data && searchData.data.length > 0) {
-              const mangaDexId = searchData.data[0].id;
-              const chaptersData = await getMangaWithChapters(mangaDexId);
-              
-              if (chaptersData && chaptersData.chapters) {
-                // فلترة الفصول: نستبعد الفصول الخارجية اللي مافيها صور
-                const validChapters = chaptersData.chapters.filter((ch: any) => 
-                  ch.attributes?.externalUrl === null
-                );
-                
-                setChapters(validChapters);
-              }
-            }
+            const fetchedChapters = await getMangaChapters(searchQuery);
+            setChapters(fetchedChapters);
           } catch (chapErr) {
-            console.error('Error fetching chapters from MangaDex:', chapErr);
+            console.error('Error fetching chapters:', chapErr);
           }
         }
       } catch (err) {
@@ -81,25 +64,22 @@ export default function MangaDetail() {
   const handleChapterSelect = async (chapterId: string) => {
     try {
       setChapterImages([]); 
-      setViewerError(null); // تصفير الأخطاء السابقة
+      setViewerError(null);
       
-      const pages = await getChapterPages(chapterId);
+      // جلب الصور المباشرة باستخدام Consumet
+      const images = await getChapterImages(chapterId);
       
-      if (!pages || !pages.chapter || !pages.chapter.data || pages.chapter.data.length === 0) {
-        setViewerError("هذا الفصل لا يحتوي على صور، قد يكون رابطاً لموقع خارجي.");
+      if (!images || images.length === 0) {
+        setViewerError("تعذر تحميل صور هذا الفصل. قد يكون المصدر معطلاً حالياً.");
         return;
       }
 
-      const images = pages.chapter.data.map((imageName: string) =>
-        buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
-      );
-      
       setChapterImages(images);
       setSelectedChapter(chapterId);
       setCurrentImageIndex(0);
     } catch (err: any) {
       console.error('Error loading chapter:', err);
-      setViewerError("تعذر تحميل صور هذا الفصل. السيرفر قد يكون مشغولاً أو الفصل محذوف.");
+      setViewerError("حدث خطأ في الاتصال بالخادم. حاول مرة أخرى لاحقاً.");
     }
   };
 
@@ -214,7 +194,7 @@ export default function MangaDetail() {
                     >
                       <div className="flex-1 text-left">
                         <p className="text-white font-medium group-hover:text-accent transition-colors">
-                          الفصل {chapter.attributes?.chapter || 'بدون رقم'}
+                          {chapter.title || `الفصل ${chapter.chapter || 'بدون رقم'}`}
                         </p>
                       </div>
                       <ChevronLeft className="w-4 h-4 text-gray-400 group-hover:text-accent" />
