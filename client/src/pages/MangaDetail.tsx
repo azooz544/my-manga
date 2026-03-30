@@ -1,6 +1,6 @@
 import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
-import { getMangaChapters, getChapterImages } from '@/lib/consumetService';
+import { getMangaWithChapters, getChapterPages, buildImageUrl } from '@/lib/mangadexService';
 import { Button } from '@/components/ui/button';
 import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
@@ -32,6 +32,7 @@ export default function MangaDetail() {
   const [chapters, setChapters] = useState<any[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
   const [loadingChapters, setLoadingChapters] = useState(false);
+  const [mangaDexId, setMangaDexId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -45,10 +46,21 @@ export default function MangaDetail() {
           
           try {
             setLoadingChapters(true);
-            // جلب الفصول باستخدام ComicK API
+            // البحث عن المانجا على MangaDex
             const searchQuery = mangaData.title_english || mangaData.title;
-            const fetchedChapters = await getMangaChapters(searchQuery);
-            setChapters(fetchedChapters);
+            const searchRes = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(searchQuery)}&limit=1`);
+            const searchData = await searchRes.json();
+
+            if (searchData.data && searchData.data.length > 0) {
+              const dexId = searchData.data[0].id;
+              setMangaDexId(dexId);
+              
+              // جلب الفصول مع الفلترة الذكية
+              const chaptersData = await getMangaWithChapters(dexId);
+              if (chaptersData.chapters && chaptersData.chapters.length > 0) {
+                setChapters(chaptersData.chapters);
+              }
+            }
           } catch (chapErr) {
             console.error('Error fetching chapters:', chapErr);
           } finally {
@@ -70,20 +82,23 @@ export default function MangaDetail() {
       setChapterImages([]); 
       setViewerError(null);
       
-      // جلب الصور من ComicK
-      const images = await getChapterImages(chapterId);
+      const pages = await getChapterPages(chapterId);
       
-      if (!images || images.length === 0) {
-        setViewerError("تعذر تحميل صور هذا الفصل. قد يكون المصدر معطلاً حالياً.");
+      if (!pages || !pages.chapter || !pages.chapter.data || pages.chapter.data.length === 0) {
+        setViewerError("هذا الفصل لا يحتوي على صور متاحة.");
         return;
       }
 
+      const images = pages.chapter.data.map((imageName: string) =>
+        buildImageUrl(pages.baseUrl, pages.chapter.hash, imageName)
+      );
+      
       setChapterImages(images);
       setSelectedChapter(chapterId);
       setCurrentImageIndex(0);
     } catch (err: any) {
       console.error('Error loading chapter:', err);
-      setViewerError("حدث خطأ في الاتصال بالخادم. حاول مرة أخرى لاحقاً.");
+      setViewerError("حدث خطأ في تحميل صور الفصل. حاول مرة أخرى.");
     }
   };
 
@@ -202,7 +217,7 @@ export default function MangaDetail() {
                     >
                       <div className="flex-1 text-left">
                         <p className="text-white font-medium group-hover:text-accent transition-colors">
-                          {chapter.title || `الفصل ${chapter.chapter || 'بدون رقم'}`}
+                          الفصل {chapter.attributes?.chapter || 'بدون رقم'} {chapter.attributes?.title ? `- ${chapter.attributes.title}` : ''}
                         </p>
                       </div>
                       <ChevronLeft className="w-4 h-4 text-gray-400 group-hover:text-accent" />
