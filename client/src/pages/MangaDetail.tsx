@@ -42,6 +42,8 @@ export default function MangaDetail() {
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [mangaDexId, setMangaDexId] = useState<string | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Fetch manga detail from Jikan
   useEffect(() => {
@@ -153,6 +155,16 @@ export default function MangaDetail() {
     setCurrentImageIndex((prev) => Math.max(0, prev - 1));
   }, []);
 
+  const handleMouseMove = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  }, []);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!showImageViewer) return;
     if (e.key === 'ArrowRight') nextPage();
@@ -164,6 +176,20 @@ export default function MangaDetail() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  useEffect(() => {
+    if (showImageViewer) {
+      setShowControls(true);
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [showImageViewer]);
 
   if (loading) {
     return (
@@ -317,25 +343,31 @@ export default function MangaDetail() {
         </div>
       </div>
 
-      {/* Image Viewer */}
+      {/* Image Viewer - Full Screen Immersive */}
       {showImageViewer && (
-        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center">
+        <div 
+          className="fixed inset-0 bg-black z-50 flex items-center justify-center"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setShowControls(false)}
+        >
           <div className="w-full h-full flex flex-col">
-            {/* Header */}
-            <div className="flex justify-between items-center p-4 bg-black/50">
+            {/* Header - Auto-hiding */}
+            <div 
+              className={`flex justify-between items-center px-6 py-4 bg-gradient-to-b from-black/80 to-transparent transition-all duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            >
               <button 
                 onClick={() => setShowImageViewer(false)}
-                className="p-2 hover:bg-white/10 rounded-lg"
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
-              <span className="text-sm text-gray-400">
+              <span className="text-sm text-gray-300 font-medium">
                 {currentImageIndex + 1} / {chapterImages.length}
               </span>
             </div>
 
-            {/* Image Display */}
-            <div className="flex-1 flex items-center justify-center overflow-hidden relative">
+            {/* Image Display - Full Screen */}
+            <div className="flex-1 flex items-center justify-center overflow-hidden relative bg-black">
               {viewerError ? (
                 <div className="text-center">
                   <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
@@ -343,33 +375,39 @@ export default function MangaDetail() {
                 </div>
               ) : (
                 <>
+                  {/* Left Navigation Button */}
                   <button 
                     onClick={prevPage}
-                    className="absolute left-4 p-2 hover:bg-white/10 rounded-lg z-10"
+                    className={`absolute left-0 top-0 bottom-0 w-20 flex items-center justify-center hover:bg-white/10 transition-all duration-300 ${showControls ? 'opacity-100' : 'opacity-0 hover:opacity-100'} group z-20`}
                   >
-                    <ChevronLeft className="w-8 h-8" />
+                    <ChevronLeft className="w-10 h-10 text-white group-hover:scale-110 transition-transform" />
                   </button>
 
+                  {/* Image */}
                   <img 
                     src={chapterImages[currentImageIndex]}
                     alt={`صفحة ${currentImageIndex + 1}`}
-                    className="max-h-full max-w-full object-contain"
+                    className="max-h-full max-w-full object-contain select-none"
+                    draggable={false}
                   />
 
+                  {/* Right Navigation Button */}
                   <button 
                     onClick={nextPage}
-                    className="absolute right-4 p-2 hover:bg-white/10 rounded-lg z-10"
+                    className={`absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center hover:bg-white/10 transition-all duration-300 ${showControls ? 'opacity-100' : 'opacity-0 hover:opacity-100'} group z-20`}
                   >
-                    <ChevronRight className="w-8 h-8" />
+                    <ChevronRight className="w-10 h-10 text-white group-hover:scale-110 transition-transform" />
                   </button>
                 </>
               )}
             </div>
 
-            {/* Progress Bar */}
-            <div className="w-full h-1 bg-gray-700">
+            {/* Progress Bar - Auto-hiding */}
+            <div 
+              className={`w-full h-1 bg-gray-800 transition-all duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+            >
               <div 
-                className="h-full bg-gradient-to-r from-purple-600 to-cyan-500"
+                className="h-full bg-gradient-to-r from-purple-600 via-cyan-500 to-purple-600 transition-all duration-200"
                 style={{ width: `${((currentImageIndex + 1) / chapterImages.length) * 100}%` }}
               />
             </div>
