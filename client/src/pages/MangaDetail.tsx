@@ -1,5 +1,6 @@
 import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
+import { getMangaWithChapters, getChapterPages, buildImageUrl } from '@/lib/mangadexService';
 import { Button } from '@/components/ui/button';
 import { Play, Star, Calendar, BookOpen, Tag, Loader, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -36,6 +37,9 @@ export default function MangaDetail() {
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [chapterImages, setChapterImages] = useState<string[]>([]);
+  const [chapters, setChapters] = useState<any[]>([]);
+  const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMangaDetail = async () => {
@@ -45,6 +49,29 @@ export default function MangaDetail() {
         if (id) {
           const response = await getMangaById(parseInt(id));
           setManga(response.data);
+          
+          // Try to fetch chapters from MangaDex
+          try {
+            const chaptersData = await getMangaWithChapters(id);
+            setChapters(chaptersData.chapters);
+            
+            // Load first chapter images
+            if (chaptersData.chapters.length > 0) {
+              const firstChapter = chaptersData.chapters[0];
+              try {
+                const pages = await getChapterPages(firstChapter.id);
+                const images = pages.chapter.data.map((imageName: string) =>
+                  buildImageUrl(firstChapter.id, pages.chapter.hash, imageName)
+                );
+                setChapterImages(images);
+                setSelectedChapter(firstChapter.id);
+              } catch (pageErr) {
+                console.error('Error fetching chapter pages:', pageErr);
+              }
+            }
+          } catch (chapErr) {
+            console.error('Error fetching chapters from MangaDex:', chapErr);
+          }
         }
       } catch (err) {
         setError('فشل في تحميل بيانات المانجا');
@@ -56,6 +83,20 @@ export default function MangaDetail() {
 
     fetchMangaDetail();
   }, [id]);
+
+  const handleChapterSelect = async (chapterId: string) => {
+    try {
+      const pages = await getChapterPages(chapterId);
+      const images = pages.chapter.data.map((imageName: string) =>
+        buildImageUrl(chapterId, pages.chapter.hash, imageName)
+      );
+      setChapterImages(images);
+      setSelectedChapter(chapterId);
+      setCurrentImageIndex(0);
+    } catch (err) {
+      console.error('Error loading chapter:', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -83,15 +124,6 @@ export default function MangaDetail() {
 
   const publishYear = new Date(manga.published.from).getFullYear();
   const authorNames = manga.authors.map(a => a.name).join(', ');
-
-  // Sample chapter images for demonstration
-  const chapterImages = [
-    'https://via.placeholder.com/600x800?text=Chapter+1',
-    'https://via.placeholder.com/600x800?text=Chapter+2',
-    'https://via.placeholder.com/600x800?text=Chapter+3',
-    'https://via.placeholder.com/600x800?text=Chapter+4',
-    'https://via.placeholder.com/600x800?text=Chapter+5',
-  ];
 
   return (
     <div className="min-h-screen bg-background pt-20">
@@ -241,24 +273,37 @@ export default function MangaDetail() {
             <div className="bg-card border border-border rounded-lg p-8">
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <BookOpen className="w-5 h-5" />
-                معاينة الفصول
+                الفصول ({chapters.length})
               </h2>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {[1, 2, 3, 4, 5].map((chapter) => (
-                  <button
-                    key={chapter}
-                    onClick={() => setShowImageViewer(true)}
-                    className="w-full flex items-center justify-between p-3 bg-secondary border border-border rounded-lg hover:border-accent transition-colors group"
-                  >
-                    <div className="flex-1 text-left">
-                      <p className="text-white font-medium group-hover:text-accent transition-colors">
-                        الفصل {chapter}
-                      </p>
-                      <p className="text-xs text-gray-500">اضغط للقراءة</p>
-                    </div>
-                    <ChevronLeft className="w-4 h-4 text-gray-400 group-hover:text-accent" />
-                  </button>
-                ))}
+                {chapters.length > 0 ? (
+                  chapters.map((chapter) => (
+                    <button
+                      key={chapter.id}
+                      onClick={() => {
+                        handleChapterSelect(chapter.id);
+                        setShowImageViewer(true);
+                      }}
+                      className={`w-full flex items-center justify-between p-3 border rounded-lg transition-colors group ${
+                        selectedChapter === chapter.id
+                          ? 'bg-purple-600/20 border-purple-500'
+                          : 'bg-secondary border-border hover:border-accent'
+                      }`}
+                    >
+                      <div className="flex-1 text-left">
+                        <p className="text-white font-medium group-hover:text-accent transition-colors">
+                          الفصل {chapter.attributes.chapter || 'بدون رقم'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(chapter.attributes.publishAt).toLocaleDateString('ar-SA')}
+                        </p>
+                      </div>
+                      <ChevronLeft className="w-4 h-4 text-gray-400 group-hover:text-accent" />
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-gray-400 text-center py-4">لا توجد فصول متاحة</p>
+                )}
               </div>
             </div>
           </div>
@@ -279,35 +324,47 @@ export default function MangaDetail() {
 
             {/* Image */}
             <div className="flex-1 flex items-center justify-center max-w-4xl w-full">
-              <img
-                src={chapterImages[currentImageIndex]}
-                alt={`صفحة ${currentImageIndex + 1}`}
-                className="max-h-full max-w-full object-contain rounded-lg"
-              />
+              {chapterImages.length > 0 ? (
+                <img
+                  src={chapterImages[currentImageIndex]}
+                  alt={`صفحة ${currentImageIndex + 1}`}
+                  className="max-h-full max-w-full object-contain rounded-lg"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600x800?text=Error+Loading+Image';
+                  }}
+                />
+              ) : (
+                <div className="text-gray-400 text-center">
+                  <Loader className="w-8 h-8 animate-spin mx-auto mb-4" />
+                  <p>جاري تحميل الصور...</p>
+                </div>
+              )}
             </div>
 
             {/* Navigation */}
-            <div className="flex items-center justify-between w-full max-w-4xl mt-6 gap-4">
-              <button
-                onClick={() => setCurrentImageIndex(Math.max(0, currentImageIndex - 1))}
-                disabled={currentImageIndex === 0}
-                className="p-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
+            {chapterImages.length > 0 && (
+              <div className="flex items-center justify-between w-full max-w-4xl mt-6 gap-4">
+                <button
+                  onClick={() => setCurrentImageIndex(Math.max(0, currentImageIndex - 1))}
+                  disabled={currentImageIndex === 0}
+                  className="p-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
 
-              <div className="text-white text-center">
-                <p className="text-sm">صفحة {currentImageIndex + 1} من {chapterImages.length}</p>
+                <div className="text-white text-center">
+                  <p className="text-sm">صفحة {currentImageIndex + 1} من {chapterImages.length}</p>
+                </div>
+
+                <button
+                  onClick={() => setCurrentImageIndex(Math.min(chapterImages.length - 1, currentImageIndex + 1))}
+                  disabled={currentImageIndex === chapterImages.length - 1}
+                  className="p-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
               </div>
-
-              <button
-                onClick={() => setCurrentImageIndex(Math.min(chapterImages.length - 1, currentImageIndex + 1))}
-                disabled={currentImageIndex === chapterImages.length - 1}
-                className="p-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-            </div>
+            )}
 
             {/* Keyboard Navigation Hint */}
             <p className="text-gray-400 text-xs mt-4">استخدم الأسهم أو انقر على الأزرار للتنقل</p>
