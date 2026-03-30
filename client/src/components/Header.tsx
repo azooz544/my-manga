@@ -8,12 +8,15 @@ export default function Header() {
   return (
     <header className="fixed top-0 right-0 left-0 z-50 bg-background border-b border-border">
       <div className="container flex items-center justify-between h-16">
-        {/* Logo */}
+        {/* Logo with Favicon */}
         <Link href="/">
-          <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-cyan-500 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">A</span>
-            </div>
+          <div className="flex items-center gap-3 group cursor-pointer hover:opacity-80 transition-opacity">
+            {/* Favicon Image */}
+            <img 
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663487489075/KqQ5RRmF8R5CT2sVVfLZbb/favicon-hero-manga-Ewb7sR9fzBexWPBNvF49Mu.webp" 
+              alt="Team A Logo" 
+              className="w-12 h-12 rounded-lg object-cover shadow-lg"
+            />
             <div className="flex flex-col hidden sm:block">
               <span className="text-lg font-bold text-white leading-tight">Team A</span>
               <span className="text-xs text-gray-400">المانجا</span>
@@ -22,7 +25,7 @@ export default function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center gap-8 flex-1 justify-center">
           <Link href="/">
             <div className="text-foreground hover:text-accent transition-colors cursor-pointer">الرئيسية</div>
           </Link>
@@ -32,8 +35,8 @@ export default function Header() {
         </nav>
 
         {/* Search and Mobile Menu */}
-        <div className="flex items-center gap-4">
-          <button className="p-2 hover:bg-secondary rounded-lg transition-colors">
+        <div className="flex items-center gap-4 ml-auto">
+          <button className="p-2 hover:bg-secondary rounded-lg transition-colors hidden sm:block">
             <Search className="w-5 h-5 text-accent" />
           </button>
 
