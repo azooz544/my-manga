@@ -2,8 +2,9 @@ import { useParams, Link } from 'wouter';
 import { getMangaById } from '@/lib/jikanService';
 import { trpcClient } from '@/lib/trpcClient';
 import { Button } from '@/components/ui/button';
-import { Play, Star, Calendar, BookOpen, Tag, Loader, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
+import { Play, Star, Calendar, BookOpen, Tag, Loader, ChevronLeft, ChevronRight, X, AlertCircle, ArrowRight } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'wouter';
 
 interface MangaDetailData {
   mal_id: number;
@@ -31,6 +32,7 @@ interface Chapter {
 
 export default function MangaDetail() {
   const { id } = useParams<{ id: string }>();
+  const [, setLocation] = useLocation();
   const [manga, setManga] = useState<MangaDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -201,7 +203,7 @@ export default function MangaDetail() {
 
   if (error || !manga) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center pt-20">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
           <p className="text-lg">{error || 'فشل في تحميل المانجا'}</p>
@@ -214,7 +216,18 @@ export default function MangaDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground pt-20">
+      {/* Back Button */}
+      <div className="max-w-6xl mx-auto px-4 mb-6">
+        <button
+          onClick={() => setLocation('/')}
+          className="flex items-center gap-2 text-accent hover:text-purple-400 transition-colors font-semibold"
+        >
+          <ArrowRight className="w-5 h-5" />
+          العودة للرئيسية
+        </button>
+      </div>
+
       {/* Hero Section */}
       <div className="relative h-96 overflow-hidden">
         <img 
@@ -226,7 +239,7 @@ export default function MangaDetail() {
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-4 py-8 -mt-32 relative z-10">
+      <div className="max-w-6xl mx-auto px-4 py-8 -mt-32 relative z-10 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Sidebar */}
           <div className="md:col-span-1">
