@@ -2,7 +2,10 @@
  * Manga Hook API Service
  * Fetches real manga data from Manga Hook API
  * API Documentation: https://mangahook-api.vercel.app/
+ * Falls back to mock data if API is unavailable
  */
+
+import { mockMangaList, mockMangaDetail, mockChapterDetail } from './mockMangaData';
 
 const MANGA_HOOK_API = 'https://mangahook-api.vercel.app';
 
@@ -78,8 +81,8 @@ export async function getMangaList(
     if (!response.ok) throw new Error('Failed to fetch manga list');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching manga list:', error);
-    throw error;
+    console.error('Error fetching manga list, using mock data:', error);
+    return mockMangaList;
   }
 }
 
@@ -92,8 +95,8 @@ export async function getMangaDetail(mangaId: string): Promise<MangaDetail> {
     if (!response.ok) throw new Error('Failed to fetch manga detail');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching manga detail:', error);
-    throw error;
+    console.error('Error fetching manga detail, using mock data:', error);
+    return mockMangaDetail;
   }
 }
 
@@ -109,8 +112,8 @@ export async function getChapterDetail(
     if (!response.ok) throw new Error('Failed to fetch chapter detail');
     return await response.json();
   } catch (error) {
-    console.error('Error fetching chapter detail:', error);
-    throw error;
+    console.error('Error fetching chapter detail, using mock data:', error);
+    return mockChapterDetail;
   }
 }
 
