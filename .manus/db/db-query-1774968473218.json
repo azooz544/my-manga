@@ -1,0 +1,52 @@
+{
+  "query": "SELECT COUNT(*) as total_manga FROM manga; SELECT COUNT(*) as total_chapters FROM chapters; SELECT m.title, COUNT(c.id) as chapter_count FROM manga m LEFT JOIN chapters c ON m.id = c.mangaId GROUP BY m.id, m.title ORDER BY chapter_count DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2MKhu939BQmtHEk.6d46cb94b8cd --database KqQ5RRmF8R5CT2sVVfLZbb --execute SELECT COUNT(*) as total_manga FROM manga; SELECT COUNT(*) as total_chapters FROM chapters; SELECT m.title, COUNT(c.id) as chapter_count FROM manga m LEFT JOIN chapters c ON m.id = c.mangaId GROUP BY m.id, m.title ORDER BY chapter_count DESC LIMIT 10;",
+  "rows": [
+    {
+      "total_manga": "28"
+    },
+    {
+      "total_manga": "total_chapters"
+    },
+    {
+      "total_manga": "275"
+    },
+    {
+      "total_manga": "title\tchapter_count"
+    },
+    {
+      "total_manga": "Solo Leveling\t10"
+    },
+    {
+      "total_manga": "Tokyo Ghoul\t10"
+    },
+    {
+      "total_manga": "The Promised Neverland\t10"
+    },
+    {
+      "total_manga": "Horimiya\t10"
+    },
+    {
+      "total_manga": "Bleach\t10"
+    },
+    {
+      "total_manga": "[Oshi no Ko]\t10"
+    },
+    {
+      "total_manga": "Kaiju No.8\t10"
+    },
+    {
+      "total_manga": "Hell’s Paradise: Jigokuraku\t10"
+    },
+    {
+      "total_manga": "Attack on Titan\t10"
+    },
+    {
+      "total_manga": "Naruto\t10"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_manga\n28\ntotal_chapters\n275\ntitle\tchapter_count\nSolo Leveling\t10\nTokyo Ghoul\t10\nThe Promised Neverland\t10\nHorimiya\t10\nBleach\t10\n[Oshi no Ko]\t10\nKaiju No.8\t10\nHell’s Paradise: Jigokuraku\t10\nAttack on Titan\t10\nNaruto\t10\n",
+  "stderr": "",
+  "execution_time_ms": 1989
+}
