@@ -15,6 +15,13 @@
       "when": 1774961790482,
       "tag": "0001_freezing_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1774967928857,
+      "tag": "0002_many_sunspot",
+      "breakpoints": true
     }
   ]
 }

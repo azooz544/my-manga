@@ -1,0 +1,19 @@
+{
+  "query": "DELETE FROM manga WHERE id NOT IN (SELECT DISTINCT mangaId FROM chapters WHERE mangaId IS NOT NULL); SELECT COUNT(*) as remaining_manga FROM manga; SELECT COUNT(*) as total_chapters FROM chapters;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2MKhu939BQmtHEk.6d46cb94b8cd --database KqQ5RRmF8R5CT2sVVfLZbb --execute DELETE FROM manga WHERE id NOT IN (SELECT DISTINCT mangaId FROM chapters WHERE mangaId IS NOT NULL); SELECT COUNT(*) as remaining_manga FROM manga; SELECT COUNT(*) as total_chapters FROM chapters;",
+  "rows": [
+    {
+      "remaining_manga": "0"
+    },
+    {
+      "remaining_manga": "total_chapters"
+    },
+    {
+      "remaining_manga": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "remaining_manga\n0\ntotal_chapters\n0\n",
+  "stderr": "",
+  "execution_time_ms": 2054
+}

@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `chapters` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`mangaId` int NOT NULL,\n\t`chapterNumber` varchar(50) NOT NULL,\n\t`title` varchar(255),\n\t`pageCount` int DEFAULT 0,\n\t`externalId` varchar(255),\n\t`source` varchar(50),\n\t`publishedAt` timestamp,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `chapters_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `chapters_externalId_unique` UNIQUE(`externalId`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2MKhu939BQmtHEk.6d46cb94b8cd --database KqQ5RRmF8R5CT2sVVfLZbb --execute CREATE TABLE `chapters` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`mangaId` int NOT NULL,\n\t`chapterNumber` varchar(50) NOT NULL,\n\t`title` varchar(255),\n\t`pageCount` int DEFAULT 0,\n\t`externalId` varchar(255),\n\t`source` varchar(50),\n\t`publishedAt` timestamp,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `chapters_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `chapters_externalId_unique` UNIQUE(`externalId`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1812
+}

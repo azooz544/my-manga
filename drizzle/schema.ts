@@ -1,4 +1,5 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, foreignKey } from "drizzle-orm/mysql-core";
+import { relations } from "drizzle-orm";
 
 /**
  * Core user table backing auth flow.
@@ -41,3 +42,19 @@ export const manga = mysqlTable("manga", {
 
 export type Manga = typeof manga.$inferSelect;
 export type InsertManga = typeof manga.$inferInsert;
+
+export const chapters = mysqlTable("chapters", {
+  id: int("id").autoincrement().primaryKey(),
+  mangaId: int("mangaId").notNull(),
+  chapterNumber: varchar("chapterNumber", { length: 50 }).notNull(),
+  title: varchar("title", { length: 255 }),
+  pageCount: int("pageCount").default(0),
+  externalId: varchar("externalId", { length: 255 }).unique(),
+  source: varchar("source", { length: 50 }), // 'mangadex', 'anilist', etc
+  publishedAt: timestamp("publishedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Chapter = typeof chapters.$inferSelect;
+export type InsertChapter = typeof chapters.$inferInsert;
