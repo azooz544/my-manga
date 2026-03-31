@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import MangaDetail from "./pages/MangaDetail";
 import SearchResults from "./pages/SearchResults";
+import ImportAdmin from "./pages/ImportAdmin";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/manga/:id" component={MangaDetail} />
       <Route path="/search/:query" component={SearchResults} />
+      <Route path="/admin/import" component={ImportAdmin} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -31,7 +33,7 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider
-        defaultTheme="light"
+        defaultTheme="dark"
         // switchable
       >
         <TooltipProvider>
