@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, manga, InsertManga } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,46 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function importMangaToDb(mangaData: InsertManga[]): Promise<number> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot import manga: database not available");
+    return 0;
+  }
+
+  let importedCount = 0;
+
+  for (const item of mangaData) {
+    try {
+      await db.insert(manga).values(item).onDuplicateKeyUpdate({
+        set: {
+          description: item.description,
+          coverUrl: item.coverUrl,
+          rating: item.rating,
+          year: item.year,
+          genres: item.genres,
+          type: item.type,
+        },
+      });
+      importedCount++;
+    } catch (error) {
+      console.error(`[Database] Error importing manga: ${item.title}`, error);
+    }
+  }
+
+  return importedCount;
+}
+
+export async function getAllManga(type?: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get manga: database not available");
+    return [];
+  }
+
+  if (type) {
+    return await db.select().from(manga).where(eq(manga.type, type as any));
+  }
+
+  return await db.select().from(manga);
+}

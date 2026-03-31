@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { searchManga, getChapters, getChapterImages } from "./_core/mangadexProxy";
+import { getAllManga } from "./db";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -20,6 +21,36 @@ export const appRouter = router({
   }),
 
   manga: router({
+    getAll: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === 'object' && val !== null && 'type' in val) {
+          return val as { type?: string };
+        }
+        return {};
+      })
+      .query(async ({ input }) => {
+        try {
+          console.log(`[Router] Fetching all manga with type: ${input.type || 'all'}`);
+          
+          const manga = await getAllManga(input.type);
+          
+          if (!manga || manga.length === 0) {
+            console.log('[Router] No manga found');
+            return [];
+          }
+          
+          console.log(`[Router] Found ${manga.length} manga`);
+          return manga;
+        } catch (error: any) {
+          console.error('[Router] Get all manga error:', error);
+          
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `خطأ في جلب المانجا: ${error.message || 'حدث خطأ غير متوقع'}`,
+          });
+        }
+      }),
+    
     search: publicProcedure
       .input((val: unknown) => {
         if (typeof val === 'string') return val;

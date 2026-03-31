@@ -63,6 +63,7 @@ async function callTRPCProcedure<T>(
 
 export const trpcClient = {
   manga: {
+    getAll: (input?: { type?: string }) => callTRPCProcedure<any[]>('manga.getAll', input || {}),
     search: (title: string) => callTRPCProcedure<any[]>('manga.search', title),
     getChapters: (mangaId: string) => callTRPCProcedure<any[]>('manga.getChapters', mangaId),
     getChapterImages: (chapterId: string) =>

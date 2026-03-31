@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getTopManga, searchManga, transformJikanManga } from '@/lib/jikanService';
 import MangaCard from './MangaCard';
 import { Search, Filter, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { trpcClient } from '@/lib/trpcClient';
 
 interface MangaItem {
   id: string;
@@ -11,6 +11,8 @@ interface MangaItem {
   chapter: string;
   view: string;
   description: string;
+  rating?: number;
+  type?: string;
 }
 
 export default function MangaGrid() {
@@ -18,33 +20,47 @@ export default function MangaGrid() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedType, setSelectedType] = useState('all');
 
-  // Fetch manga data from Jikan API
+  // Fetch manga data from database
   useEffect(() => {
     const fetchManga = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        let response;
-        if (searchQuery.trim()) {
-          response = await searchManga(searchQuery, currentPage);
-        } else {
-          // Fetch top manga by default
-          response = await getTopManga(currentPage, 'manga');
-        }
-        
-        if (response && response.data && Array.isArray(response.data)) {
-          const transformedManga = response.data.map(transformJikanManga);
-          setMangaList(transformedManga);
+
+        // Call the backend to get all manga
+        const response = await trpcClient.manga.getAll({
+          type: selectedType === 'all' ? undefined : selectedType,
+        });
+
+        if (response && Array.isArray(response)) {
+          // Transform database manga to MangaItem format
+          let transformed = response.map((manga: any) => ({
+            id: manga.id.toString(),
+            image: manga.coverUrl || '/placeholder-manga.png',
+            title: manga.title,
+            chapter: `${manga.year}`,
+            view: `${manga.rating || 0}⭐`,
+            description: manga.description || 'لا توجد وصفة متاحة',
+            rating: manga.rating,
+            type: manga.type,
+          }));
+
+          // Filter by search query
+          if (searchQuery.trim()) {
+            transformed = transformed.filter(m =>
+              m.title.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+          }
+
+          setMangaList(transformed);
         } else {
           setMangaList([]);
           setError('لم يتم العثور على بيانات المانجا');
         }
-      } catch (err) {
-        setError('فشل في تحميل بيانات المانجا. يرجى المحاولة لاحقاً.');
+      } catch (err: any) {
+        setError(`فشل في تحميل بيانات المانجا: ${err?.message || 'خطأ غير معروف'}`);
         console.error('Error fetching manga:', err);
       } finally {
         setLoading(false);
@@ -53,12 +69,12 @@ export default function MangaGrid() {
 
     const debounceTimer = setTimeout(() => {
       fetchManga();
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(debounceTimer);
-  }, [currentPage, selectedType, searchQuery]);
+  }, [selectedType, searchQuery]);
 
-  // Manga list is already filtered by API
+  // Manga list is already filtered
   const filteredManga = useMemo(() => {
     return mangaList;
   }, [mangaList]);
@@ -90,41 +106,40 @@ export default function MangaGrid() {
         <div className="mb-8">
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <Filter className="w-4 h-4" />
-            نوع الترتيب
+            نوع المحتوى
           </h3>
           <div className="flex flex-wrap gap-2">
             <Button
               variant={selectedType === 'all' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => {
-                setSelectedType('all');
-                setCurrentPage(1);
-              }}
+              onClick={() => setSelectedType('all')}
               className="text-xs"
             >
-              الأفضل
+              الكل
             </Button>
             <Button
               variant={selectedType === 'manga' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => {
-                setSelectedType('manga');
-                setCurrentPage(1);
-              }}
+              onClick={() => setSelectedType('manga')}
               className="text-xs"
             >
-              الأكثر تقييماً
+              مانجا
             </Button>
             <Button
-              variant={selectedType === 'upcoming' ? 'default' : 'outline'}
+              variant={selectedType === 'manhwa' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => {
-                setSelectedType('upcoming');
-                setCurrentPage(1);
-              }}
+              onClick={() => setSelectedType('manhwa')}
               className="text-xs"
             >
-              الجديدة
+              مانهوا
+            </Button>
+            <Button
+              variant={selectedType === 'manhua' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedType('manhua')}
+              className="text-xs"
+            >
+              مانهوا صينية
             </Button>
           </div>
         </div>
@@ -164,28 +179,6 @@ export default function MangaGrid() {
           <div className="text-center py-16">
             <p className="text-gray-400 text-lg">لم يتم العثور على أي مانجا</p>
             <p className="text-gray-500 text-sm mt-2">جرب تغيير معايير البحث</p>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {!loading && mangaList.length > 0 && (
-          <div className="flex justify-center gap-4 mt-12">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              السابق
-            </Button>
-            <div className="flex items-center gap-2">
-              <span className="text-white">الصفحة {currentPage}</span>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(p => p + 1)}
-            >
-              التالي
-            </Button>
           </div>
         )}
       </div>

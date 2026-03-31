@@ -1,9 +1,19 @@
 import { useState } from 'react';
 import { Menu, X, Search } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [, navigate] = useLocation();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search/${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+    }
+  };
 
   return (
     <header className="fixed top-0 right-0 left-0 z-50 bg-background border-b border-border">
@@ -36,9 +46,21 @@ export default function Header() {
 
         {/* Search and Mobile Menu */}
         <div className="flex items-center gap-4 ml-auto">
-          <button className="p-2 hover:bg-secondary rounded-lg transition-colors hidden sm:block">
-            <Search className="w-5 h-5 text-accent" />
-          </button>
+          <form onSubmit={handleSearch} className="hidden sm:flex items-center">
+            <input
+              type="text"
+              placeholder="ابحث عن مانجا..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="px-3 py-2 bg-secondary rounded-l-lg border border-border focus:outline-none focus:ring-2 focus:ring-accent text-foreground placeholder-muted-foreground"
+            />
+            <button
+              type="submit"
+              className="p-2 hover:bg-accent bg-secondary rounded-r-lg transition-colors border border-border border-l-0"
+            >
+              <Search className="w-5 h-5 text-foreground" />
+            </button>
+          </form>
 
           {/* Mobile Menu Button */}
           <button

@@ -25,4 +25,19 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const manga = mysqlTable("manga", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull().unique(),
+  description: text("description"),
+  coverUrl: varchar("coverUrl", { length: 512 }),
+  rating: int("rating").default(0),
+  year: int("year"),
+  genres: text("genres"), // JSON stringified array
+  type: mysqlEnum("type", ["manga", "manhwa", "manhua"]).default("manga"),
+  anilistId: int("anilistId").unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Manga = typeof manga.$inferSelect;
+export type InsertManga = typeof manga.$inferInsert;

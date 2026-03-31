@@ -8,6 +8,13 @@
       "when": 1774860837253,
       "tag": "0000_rare_the_professor",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1774961790482,
+      "tag": "0001_freezing_praxagora",
+      "breakpoints": true
     }
   ]
 }
